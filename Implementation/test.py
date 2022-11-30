@@ -14,3 +14,4 @@ with open("Grading_Assignment.csv","r") as file:
 
 
 nump_arr = np.array()
+print("correlation")
