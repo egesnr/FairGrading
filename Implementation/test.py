@@ -13,4 +13,4 @@ with open("Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 
-plot.scatter(row)
+nump_arr = np.array()
