@@ -15,7 +15,8 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("Grading_Assignment.csv")
+#df = pd.read_csv("Grading_Assignment.csv")
+df = pd.read_csv("Implementation\Grading_Assignment.csv")
 
 
 def infos():
@@ -73,24 +74,95 @@ for i in range(24):
       teacher_x = commons.iloc[0].mean()
       teacher_y = commons.iloc[1].mean()
 '''
-a = []
-deviation = []
-for i in range(25):
+def dev():
+ deviation = []
+ for i in range(25):
     for j in range(25):
         combinations = df2.iloc[:, [i, j]]
         commons = combinations.dropna()
         teacher_x = commons.iloc[:, 0].mean()
         teacher_y = commons.iloc[:, 1].mean()
         mean = teacher_x - teacher_y
-        a.append(mean)
         diff = (np.array(commons.iloc[:, 0]) - np.array(commons.iloc[:, 1]))
         deviation.append(np.sqrt(np.sum((diff - mean) ** 2) / 25.0))
 
-deviation = np.array(deviation).reshape(25, 25)
-b = np.array(a)
-c = b.reshape(25, 25)
+ deviation = np.array(deviation).reshape(25, 25)
+ deviation = pd.DataFrame(deviation)
+ 
 
-d = pd.DataFrame(c)
-deviation = pd.DataFrame(deviation)
-#print(d)
-print(deviation)
+def meanCorrelation():
+ a = []
+ for i in range(25):
+    for j in range(25):
+      combinations = df2.iloc[:, [i, j]]
+      commons = combinations.dropna()
+      teacher_x = commons.iloc[:,0].mean()
+      teacher_y = commons.iloc[:,1].mean()
+      a.append(teacher_x-teacher_y)
+
+ b = np.array(a)
+ c = b.reshape(25,25)
+
+ d = pd.DataFrame(c)
+ print(d)
+
+
+
+def meanCorrelation_train():
+ a = []
+ for i in range(25):
+    for j in range(25):
+      combinations = df2.iloc[:, [i, j]]
+      commons = combinations.dropna()
+      teacher_x = commons.iloc[:-1,0].mean()
+      teacher_y = commons.iloc[:-1,1].mean()
+      a.append(teacher_x-teacher_y)
+
+ b = np.array(a)
+ c = b.reshape(25,25)
+
+ d = pd.DataFrame(c)
+ 
+ return d
+
+
+def test():
+ a = []
+ a2 = []
+ sum = 0
+ sum2 = 0
+ 
+ x_sum = 0
+ x_array = []
+ for i in range(25):
+    
+    for j in range(i+1,25):
+      combinations = df2.iloc[:, [i, j]]
+      commons = combinations.dropna()
+      teacher_xx = commons.iloc[:-1,0].mean()
+      teacher_yy = commons.iloc[:-1,1].mean()
+      teacher_x = commons.iloc[-1,0]
+      teacher_y = commons.iloc[-1,1]
+      
+      p = teacher_xx-teacher_x
+      q = teacher_yy-teacher_y
+      sum += abs(p)
+      sum += abs(q)
+      a.append(p)
+      a.append(q)
+      
+      
+ 
+ 
+ 
+ #print("len a = ", len(a))
+ #print(sum)
+ print("Avarage error rate is ",(sum/len(a)))
+ print("Avarage percentage error ",(sum2/len(a2)))
+ 
+
+
+#dev()
+#meanCorrelation()
+
+test()
