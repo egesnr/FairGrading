@@ -153,8 +153,11 @@ def test():
       teacher_xx = teacher_xx.loc[teacher_xx!=teacher_x].mean()
       teacher_yy = teacher_yy.loc[teacher_yy!=teacher_y].mean()
      
-      
-      
+     #Bu kullanılacak !!
+      mean_diff = teacher_xx - teacher_yy
+     #düzeltilecek
+      predict_x = teacher_y + mean_diff
+      predict_y = teacher_x + mean_diff  
       p = teacher_xx-teacher_x
       q = teacher_yy-teacher_y
       sum += abs(p)
