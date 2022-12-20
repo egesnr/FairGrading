@@ -2,6 +2,7 @@ import csv
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import random
 
 '''
 rows = []
@@ -139,10 +140,20 @@ def test():
     for j in range(i+1,25):
       combinations = df2.iloc[:, [i, j]]
       commons = combinations.dropna()
-      teacher_xx = commons.iloc[:-1,0].mean()
-      teacher_yy = commons.iloc[:-1,1].mean()
-      teacher_x = commons.iloc[-1,0]
-      teacher_y = commons.iloc[-1,1]
+      length = len(commons)
+      
+      random_number1 = random.randint(0,length-1)
+      random_number2 = random.randint(0,length-1)
+      teacher_x = commons.iloc[random_number1,0]
+      teacher_y = commons.iloc[random_number2,1]
+
+      teacher_xx = commons.iloc[:,0]
+      teacher_yy = commons.iloc[:,1]
+      
+      teacher_xx = teacher_xx.loc[teacher_xx!=teacher_x].mean()
+      teacher_yy = teacher_yy.loc[teacher_yy!=teacher_y].mean()
+     
+      
       
       p = teacher_xx-teacher_x
       q = teacher_yy-teacher_y
@@ -158,7 +169,7 @@ def test():
  #print("len a = ", len(a))
  #print(sum)
  print("Avarage error rate is ",(sum/len(a)))
- print("Avarage percentage error ",(sum2/len(a2)))
+ #print("Avarage percentage error ",(sum2/len(a2)))
  
 
 
