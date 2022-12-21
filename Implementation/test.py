@@ -146,17 +146,17 @@ def test():
       commons = combinations.dropna()
       length = len(commons)
       
-      random_number1 = random.randint(0,length-1)
-      random_number2 = random.randint(0,length-1)
-      teacher_x = commons.iloc[random_number1,0]
-      teacher_y = commons.iloc[random_number2,1]
+      random_number = random.randint(0,length-1)
+      #random_number2 = random.randint(0,length-1)
+      teacher_x = commons.iloc[random_number,0]
+      teacher_y = commons.iloc[random_number,1]
 
       teacher_xx = commons.iloc[:,0]
       teacher_yy = commons.iloc[:,1]
       
       teacher_xx = teacher_xx.loc[teacher_xx!=teacher_x].mean()
       teacher_yy = teacher_yy.loc[teacher_yy!=teacher_y].mean()
-     
+      
       #Theorem 1
       p = teacher_xx-teacher_x
       q = teacher_yy-teacher_y
@@ -173,33 +173,50 @@ def test():
       diff = teacher_xx - teacher_yy
       deviation_x = np.sqrt(np.sum((teacher_x - teacher_xx) ** 2) /length)
       deviation_y = np.sqrt(np.sum((teacher_y - teacher_yy) ** 2) /length)
-      predict_x = teacher_y + mean_diff
-      predict_y = teacher_x - mean_diff
+      if teacher_y + mean_diff>=100:
+        predict_x = 100
+      else:
+        predict_x = teacher_y + mean_diff
+      if teacher_x - mean_diff>=100:
+        predict_y = 100
+      else:
+        predict_y = teacher_x - mean_diff
+
+      if teacher_y + mean_diff<=0:
+        predict_x = 0
+      else:
+        predict_x = teacher_y + mean_diff
+      if teacher_x - mean_diff<=0:
+        predict_y = 0
+      else:
+        predict_y = teacher_x - mean_diff 
+
+      predict_2x = teacher_y + mean_diff
+      predict_2y = teacher_x - mean_diff
+      
       sum2 += abs(predict_x-teacher_x)
       sum2 += abs(predict_y-teacher_y)
       a2.append(predict_x)
       a2.append(predict_y)
-
+      
       devide_diff = teacher_xx/teacher_yy
-      predict_2x = teacher_y*devide_diff
-      predict_2y = teacher_x*devide_diff
+      
       sum3 += abs(predict_2x-teacher_x)
+      
       sum3 += abs(predict_2y-teacher_y)
+      
       a3.append(predict_2x)
       a3.append(predict_2y)
       #Theorem 4 kontrol et 
-      if (teacher_x - teacher_xx)>deviation_x:
-        predict_3y = predict_2y
-      else:
-        predict_3y = teacher_yy
-      if (teacher_y - teacher_yy)>deviation_y:
-        predict_3x = predict_2x
-      else:
-        predict_3x = teacher_xx
-      sum4 = abs(predict_3x-teacher_x)
-      sum4 = abs(predict_3y-teacher_y)
-      a4.append(predict_3x)
-      a4.append(predict_3y)
+      
+        
+      #sum4 += abs(predict_3x-teacher_x)
+      
+      #sum4 += abs(predict_3y-teacher_y)
+      
+      
+      #a4.append(predict_3x)
+      #a4.append(predict_3y)
       '''
       if abs(teacher_x-teacher_xx)>deviation_x:
          predict_y = teacher_x + mean_diff + (abs(teacher_x-teacher_xx)-deviation_x)
@@ -228,7 +245,9 @@ def test():
  print("Avarage error rate is ",(sum/len(a)))
  print("Avarage error rate for theorem 2 is ",sum2/len(a2))
  print("Avarage error rate for theorem 3 is ",sum3/len(a3))
- print("Avarage error rate for theorem 4 is ",sum4/len(a4))
+ #print("sum3 ", sum3, "len ", len(a3))
+ #print("Avarage error rate for theorem 4 is ",sum4/len(a4))
+ #print("sum4 ", sum4, " len ",len(a4))
  #print("Avarage percentage error ",(sum2/len(a2)))
  
 
