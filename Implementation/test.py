@@ -16,8 +16,10 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-#df = pd.read_csv("Grading_Assignment.csv")
-df = pd.read_csv("Implementation\Grading_Assignment.csv")
+df = pd.read_csv("Grading_Assignment.csv")
+
+
+# df = pd.read_csv("Implementation\Grading_Assignment.csv")
 
 
 def infos():
@@ -75,88 +77,126 @@ for i in range(24):
       teacher_x = commons.iloc[0].mean()
       teacher_y = commons.iloc[1].mean()
 '''
+
+
 def dev():
- deviation = []
- for i in range(25):
-    for j in range(25):
-        combinations = df2.iloc[:, [i, j]]
-        commons = combinations.dropna()
-        teacher_x = commons.iloc[:, 0].mean()
-        teacher_y = commons.iloc[:, 1].mean()
-        mean = teacher_x - teacher_y
-        diff = (np.array(commons.iloc[:, 0]) - np.array(commons.iloc[:, 1]))
-        deviation.append(np.sqrt(np.sum((diff - mean) ** 2) / 25.0))
+    deviation = []
+    for i in range(25):
+        for j in range(25):
+            combinations = df2.iloc[:, [i, j]]
+            commons = combinations.dropna()
+            teacher_x = commons.iloc[:, 0].mean()
+            teacher_y = commons.iloc[:, 1].mean()
+            mean = teacher_x - teacher_y
+            diff = (np.array(commons.iloc[:, 0]) - np.array(commons.iloc[:, 1]))
+            deviation.append(np.sqrt(np.sum((diff - mean) ** 2) / len(diff)))
 
- deviation = np.array(deviation).reshape(25, 25)
- deviation = pd.DataFrame(deviation)
- 
+    deviation = np.array(deviation).reshape(25, 25)
+    deviation = pd.DataFrame(deviation)
 
+
+# Use all data for training
 def meanCorrelation():
- a = []
- for i in range(25):
-    for j in range(25):
-      combinations = df2.iloc[:, [i, j]]
-      commons = combinations.dropna()
-      teacher_x = commons.iloc[:,0].mean()
-      teacher_y = commons.iloc[:,1].mean()
-      a.append(teacher_x-teacher_y)
+    a = []
+    for i in range(25):
+        for j in range(25):
+            combinations = df2.iloc[:, [i, j]]
+            commons = combinations.dropna()
+            teacher_x = commons.iloc[:, 0].mean()
+            teacher_y = commons.iloc[:, 1].mean()
+            a.append(teacher_x - teacher_y)
 
- b = np.array(a)
- c = b.reshape(25,25)
+    b = np.array(a)
+    c = b.reshape(25, 25)
 
- d = pd.DataFrame(c)
- print(d)
+    d = pd.DataFrame(c)
+    return d
 
 
+# Given a data which has for each instructor's pairwise inter-relation
+# As a mean difference with other instructors predicts not given instructor using test data
+# (test data should be represent grades with their source numbers)
+# test data should be an array of dictionaries of int
+# an example : [{1: None, 2: 63, 3: 73}, {3: None, 2: 76, 7: 90}]
+#
+def MLModelA_simple(inter_data, test_data):
+    for i in range(len(test_data)):
+        temp = []
+        tempSum = 0
+        unknown_temp = []
+        for key in test_data[i].keys():
+            if test_data[i][key] is not None:
+                temp.append(key)
+                tempSum += test_data[i][key]
+            else:
+                unknown_temp.append(key)
 
+        for b in range(len(unknown_temp)):
+            sumSum = tempSum
+            for j in range(len(temp)):
+                corr = inter_data[unknown_temp[b] - 1][temp[j] - 1]
+                sumSum += corr
+            average = sumSum / len(temp)
+            if average >= 100:
+                average = 100
+            elif average <= 0:
+                average = 0
+            test_data[i][unknown_temp[b]] = int(average)
+
+
+# given data of 2d int turns into dictionary
+def conf_dictionary(data):
+    return
+
+# Throw the last item and train them
 def meanCorrelation_train():
- a = []
- for i in range(25):
-    for j in range(25):
-      combinations = df2.iloc[:, [i, j]]
-      commons = combinations.dropna()
-      teacher_x = commons.iloc[:-1,0].mean()
-      teacher_y = commons.iloc[:-1,1].mean()
-      a.append(teacher_x-teacher_y)
+    a = []
+    for i in range(25):
+        for j in range(25):
+            combinations = df2.iloc[:, [i, j]]
+            commons = combinations.dropna()
+            teacher_x = commons.iloc[:-1, 0].mean()
+            teacher_y = commons.iloc[:-1, 1].mean()
+            a.append(teacher_x - teacher_y)
 
- b = np.array(a)
- c = b.reshape(25,25)
+    b = np.array(a)
+    c = b.reshape(25, 25)
 
- d = pd.DataFrame(c)
- 
- return d
+    d = pd.DataFrame(c)
+
+    return d
 
 
-def test():
- a = []
- a2 = []
- a3 = []
- a4 = []
- deviation = []
- sum = 0
- sum2 = 0
- sum3 = 0
- sum4 = 0
- x_sum = 0
- x_array = []
- for i in range(25):
+
+a = []
+a2 = []
+a3 = []
+a4 = []
+deviation = []
+sum = 0
+sum2 = 0
+sum3 = 0
+sum4 = 0
+x_sum = 0
+x_array = []
+for i in range(25):
     
     for j in range(i+1,25):
       combinations = df2.iloc[:, [i, j]]
       commons = combinations.dropna()
       length = len(commons)
       
-      random_number = random.randint(0,length-1)
-      #random_number2 = random.randint(0,length-1)
-      teacher_x = commons.iloc[random_number,0]
-      teacher_y = commons.iloc[random_number,1]
+      random_number1 = random.randint(0,length-1)
+      random_number2 = random.randint(0,length-1)
+      teacher_x = commons.iloc[random_number1,0]
+      teacher_y = commons.iloc[random_number2,1]
 
       teacher_xx = commons.iloc[:,0]
       teacher_yy = commons.iloc[:,1]
       
       teacher_xx = teacher_xx.loc[teacher_xx!=teacher_x].mean()
       teacher_yy = teacher_yy.loc[teacher_yy!=teacher_y].mean()
-      
+     
       #Theorem 1
       p = teacher_xx-teacher_x
       q = teacher_yy-teacher_y
@@ -173,50 +213,33 @@ def test():
       diff = teacher_xx - teacher_yy
       deviation_x = np.sqrt(np.sum((teacher_x - teacher_xx) ** 2) /length)
       deviation_y = np.sqrt(np.sum((teacher_y - teacher_yy) ** 2) /length)
-      if teacher_y + mean_diff>=100:
-        predict_x = 100
-      else:
-        predict_x = teacher_y + mean_diff
-      if teacher_x - mean_diff>=100:
-        predict_y = 100
-      else:
-        predict_y = teacher_x - mean_diff
-
-      if teacher_y + mean_diff<=0:
-        predict_x = 0
-      else:
-        predict_x = teacher_y + mean_diff
-      if teacher_x - mean_diff<=0:
-        predict_y = 0
-      else:
-        predict_y = teacher_x - mean_diff 
-
-      predict_2x = teacher_y + mean_diff
-      predict_2y = teacher_x - mean_diff
-      
+      predict_x = teacher_y + mean_diff
+      predict_y = teacher_x - mean_diff
       sum2 += abs(predict_x-teacher_x)
       sum2 += abs(predict_y-teacher_y)
       a2.append(predict_x)
       a2.append(predict_y)
-      
+
       devide_diff = teacher_xx/teacher_yy
-      
+      predict_2x = teacher_y*devide_diff
+      predict_2y = teacher_x*devide_diff
       sum3 += abs(predict_2x-teacher_x)
-      
       sum3 += abs(predict_2y-teacher_y)
-      
       a3.append(predict_2x)
       a3.append(predict_2y)
       #Theorem 4 kontrol et 
-      
-        
-      #sum4 += abs(predict_3x-teacher_x)
-      
-      #sum4 += abs(predict_3y-teacher_y)
-      
-      
-      #a4.append(predict_3x)
-      #a4.append(predict_3y)
+      if (teacher_x - teacher_xx)>deviation_x:
+        predict_3y = predict_2y
+      else:
+        predict_3y = teacher_yy
+      if (teacher_y - teacher_yy)>deviation_y:
+        predict_3x = predict_2x
+      else:
+        predict_3x = teacher_xx
+      sum4 = abs(predict_3x-teacher_x)
+      sum4 = abs(predict_3y-teacher_y)
+      a4.append(predict_3x)
+      a4.append(predict_3y)
       '''
       if abs(teacher_x-teacher_xx)>deviation_x:
          predict_y = teacher_x + mean_diff + (abs(teacher_x-teacher_xx)-deviation_x)
@@ -242,12 +265,10 @@ def test():
  
  #print("len a = ", len(a))
  #print(sum)
- print("Avarage error rate is ",(sum/len(a)))
- print("Avarage error rate for theorem 2 is ",sum2/len(a2))
- print("Avarage error rate for theorem 3 is ",sum3/len(a3))
- #print("sum3 ", sum3, "len ", len(a3))
- #print("Avarage error rate for theorem 4 is ",sum4/len(a4))
- #print("sum4 ", sum4, " len ",len(a4))
+print("Avarage error rate is ",(sum/len(a)))
+print("Avarage error rate for theorem 2 is ",sum2/len(a2))
+print("Avarage error rate for theorem 3 is ",sum3/len(a3))
+print("Avarage error rate for theorem 4 is ",sum4/len(a4))
  #print("Avarage percentage error ",(sum2/len(a2)))
  
 
