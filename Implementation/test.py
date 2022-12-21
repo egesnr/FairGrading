@@ -16,7 +16,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("Grading_Assignment.csv")
+df = pd.read_csv("Implementation\Grading_Assignment.csv")
 
 
 # df = pd.read_csv("Implementation\Grading_Assignment.csv")
@@ -189,7 +189,7 @@ for i in range(25):
       random_number1 = random.randint(0,length-1)
       random_number2 = random.randint(0,length-1)
       teacher_x = commons.iloc[random_number1,0]
-      teacher_y = commons.iloc[random_number2,1]
+      teacher_y = commons.iloc[random_number1,1]
 
       teacher_xx = commons.iloc[:,0]
       teacher_yy = commons.iloc[:,1]
@@ -276,4 +276,4 @@ print("Avarage error rate for theorem 4 is ",sum4/len(a4))
 #dev()
 #meanCorrelation()
 
-test()
+
