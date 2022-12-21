@@ -125,7 +125,7 @@ def MLModelA_simple(inter_data, test_data):
         tempSum = 0
         unknown_temp = []
         for key in test_data[i].keys():
-            if test_data[i][key] != None:
+            if test_data[i][key] is not None:
                 temp.append(key)
                 tempSum += test_data[i][key]
             else:
@@ -137,9 +137,16 @@ def MLModelA_simple(inter_data, test_data):
                 corr = inter_data[unknown_temp[b] - 1][temp[j] - 1]
                 sumSum += corr
             average = sumSum / len(temp)
+            if average >= 100:
+                average = 100
+            elif average <= 0:
+                average = 0
             test_data[i][unknown_temp[b]] = int(average)
-    print(test_data[0][3])
 
+
+# given data of 2d int turns into dictionary
+def conf_dictionary(data):
+    return
 
 # Throw the last item and train them
 def meanCorrelation_train():
@@ -262,6 +269,6 @@ def test():
 
 # dev()
 # meanCorrelation_train()
-MLModelA_simple(meanCorrelation(), [{3: None, 20: 28, 23: 53}])
+#MLModelA_simple(meanCorrelation(), [{3: None, 20: 28, 23: 53}])
 print()
 test()
