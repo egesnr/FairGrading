@@ -130,9 +130,13 @@ def meanCorrelation_train():
 def test():
  a = []
  a2 = []
+ a3 = []
+ a4 = []
+ deviation = []
  sum = 0
  sum2 = 0
- 
+ sum3 = 0
+ sum4 = 0
  x_sum = 0
  x_array = []
  for i in range(25):
@@ -153,17 +157,67 @@ def test():
       teacher_xx = teacher_xx.loc[teacher_xx!=teacher_x].mean()
       teacher_yy = teacher_yy.loc[teacher_yy!=teacher_y].mean()
      
-     #Bu kullanılacak !!
-      mean_diff = teacher_xx - teacher_yy
-     #düzeltilecek
-      predict_x = teacher_y + mean_diff
-      predict_y = teacher_x + mean_diff  
+      #Theorem 1
       p = teacher_xx-teacher_x
       q = teacher_yy-teacher_y
       sum += abs(p)
       sum += abs(q)
       a.append(p)
       a.append(q)
+     #Bu kullanılacak !!
+      mean_diff = teacher_xx - teacher_yy
+     #düzeltilecek
+      #predict_x = teacher_y + mean_diff
+      #predict_y = teacher_x + mean_diff  
+      
+      diff = teacher_xx - teacher_yy
+      deviation_x = np.sqrt(np.sum((teacher_x - teacher_xx) ** 2) /length)
+      deviation_y = np.sqrt(np.sum((teacher_y - teacher_yy) ** 2) /length)
+      predict_x = teacher_y + mean_diff
+      predict_y = teacher_x - mean_diff
+      sum2 += abs(predict_x-teacher_x)
+      sum2 += abs(predict_y-teacher_y)
+      a2.append(predict_x)
+      a2.append(predict_y)
+
+      devide_diff = teacher_xx/teacher_yy
+      predict_2x = teacher_y*devide_diff
+      predict_2y = teacher_x*devide_diff
+      sum3 += abs(predict_2x-teacher_x)
+      sum3 += abs(predict_2y-teacher_y)
+      a3.append(predict_2x)
+      a3.append(predict_2y)
+      #Theorem 4 kontrol et 
+      if (teacher_x - teacher_xx)>deviation_x:
+        predict_3y = predict_2y
+      else:
+        predict_3y = teacher_yy
+      if (teacher_y - teacher_yy)>deviation_y:
+        predict_3x = predict_2x
+      else:
+        predict_3x = teacher_xx
+      sum4 = abs(predict_3x-teacher_x)
+      sum4 = abs(predict_3y-teacher_y)
+      a4.append(predict_3x)
+      a4.append(predict_3y)
+      '''
+      if abs(teacher_x-teacher_xx)>deviation_x:
+         predict_y = teacher_x + mean_diff + (abs(teacher_x-teacher_xx)-deviation_x)
+      else:
+         predict_y = teacher_x + mean_diff - (abs(teacher_x-teacher_xx)-deviation_x)
+      if  abs(teacher_y-teacher_yy)>deviation_y:
+         predict_x = teacher_y + mean_diff + (abs(teacher_y-teacher_yy)-deviation_y)
+      else:
+         predict_x = teacher_y + mean_diff - + (abs(teacher_y-teacher_yy)-deviation_y)
+    
+      value_one = predict_x - teacher_x
+      value_two = predict_y - teacher_y
+      sum2 += abs(value_one)
+      sum2 += abs(value_two)
+      a2.append(value_one)
+      a2.append(value_two)
+      '''
+     
       
       
  
@@ -172,6 +226,9 @@ def test():
  #print("len a = ", len(a))
  #print(sum)
  print("Avarage error rate is ",(sum/len(a)))
+ print("Avarage error rate for theorem 2 is ",sum2/len(a2))
+ print("Avarage error rate for theorem 3 is ",sum3/len(a3))
+ print("Avarage error rate for theorem 4 is ",sum4/len(a4))
  #print("Avarage percentage error ",(sum2/len(a2)))
  
 
