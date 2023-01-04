@@ -1,5 +1,6 @@
 import csv
 from collections import OrderedDict
+import statistics
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -343,13 +344,18 @@ def meanCorrelation_train():
 def standart_deviation_table(data):
     standart_deviation_table = []
     mySum = 0
-    for i in range(len(data)):
-      for j in range(len(data)):
+    for i in range(25):
+      for j in range(25):
 
-        combinations = df2.iloc[:, [i, j]]
+        combinations = data.iloc[:, [i, j]]
         combinations_dropped= combinations.dropna()
-        first_column = combinations_dropped[:,0]
-        second_column = combinations_dropped[:,1]
+        first_column = combinations_dropped.iloc[:,0]
+        second_column = combinations_dropped.iloc[:,1]
+        column_diffrence = first_column - second_column
+        standart_deviation_table.append( statistics.stdev(column_diffrence) )
+    standart_deviation_table = np.array(standart_deviation_table)
+    standart_deviation_table = standart_deviation_table.reshape(25,25)
+    return pd.DataFrame(standart_deviation_table)
         
    
     return standart_deviation_table
@@ -386,8 +392,8 @@ for i in range(25):
         q = teacher_yy - teacher_y
         sum += abs(p)
         sum += abs(q)
-        a.append(p)
-        a.append(q)
+        #a.append(p)
+        #a.append(q)
         # Bu kullanılacak !!
         mean_diff = teacher_xx - teacher_yy
         # düzeltilecek
@@ -444,7 +450,7 @@ for i in range(25):
 
 # print("len a = ", len(a))
 # print(sum)
-print("Avarage error rate is ", (sum / len(a)))
+#print("Avarage error rate is ", (sum / len(a)))
 print("Avarage error rate for theorem 2 is ", sum2 / len(a2))
 print("Avarage error rate for theorem 3 is ", sum3 / len(a3))
 print("Avarage error rate for theorem 4 is ", sum4 / len(a4))
@@ -454,4 +460,5 @@ print("Avarage error rate for theorem 4 is ", sum4 / len(a4))
 # dev()
 # meanCorrelation_train()
 #print(common_grade_table(df2))
-multi_split(1)
+#multi_split(1)
+print(standart_deviation_table(df2))
