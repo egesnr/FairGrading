@@ -1,4 +1,5 @@
 import csv
+from collections import OrderedDict
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -17,10 +18,10 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("Grading_Assignment.csv")
+#df = pd.read_csv("Grading_Assignment.csv")
 
 
-# df = pd.read_csv("Implementation\Grading_Assignment.csv")
+df = pd.read_csv("Implementation\Grading_Assignment.csv")
 
 
 def infos():
@@ -156,11 +157,25 @@ def find_frequency(data):
     for i in range(len(data.columns)):
         column = data.iloc[:, [i]]
         column = column.dropna()
-        mySum += len(column)
+        #mySum += len(column)
         insGradeLen.append(len(column))
-    insGradeLen = [x / mySum for x in insGradeLen]
+    #insGradeLen = [x / mySum for x in insGradeLen]
     return insGradeLen
 
+#Find how many common grade for each pair of teacher 
+def common_grade_table(data):
+    freq = pd.DataFrame()
+    freq2 = []
+    for i in range(25):
+        for j in range(25):
+            combinations = data.iloc[:, [i, j]]
+            commons = combinations.dropna()
+            freq2.append(len(commons.iloc[:,0]))
+    b = np.array(freq2)
+    c = b.reshape(25, 25)
+    d = pd.DataFrame(c)
+    return d
+     
 
 # weighted randomized splitting data train and test by looking the frequency
 # Returns trains 2d array and test dictionary source and grade as key and value correspondingly
@@ -168,6 +183,9 @@ def split_data(data):
     train_data = data.to_numpy().copy()
     freq = find_frequency(data)
     freq = pd.DataFrame(freq)
+    #print(freq)
+    commons = common_grade_table(df2)
+    #print(commons)
     locations = [[]]
     test_dict = [{}]
 
@@ -177,16 +195,97 @@ def split_data(data):
                 locations[i].append(j)
         locations.append([])
     locations = locations[:-1]
-
+    
     for i in range(len(locations)):
+        teacher_1 = locations[i][0]
+        teacher_2 = locations[i][1]
+        teacher_3 = locations[i][2]
+
+        freq_teacher_1 = freq.iloc[locations[i][0]][0]
+        freq_teacher_2 = freq.iloc[locations[i][1]][0]
+        freq_teacher_3 = freq.iloc[locations[i][2]][0]
+        
+        
+        
+        commons_per_project =sorted( [int(commons[teacher_1][teacher_2]),int(commons[teacher_1][teacher_3]),int(commons[teacher_2][teacher_3])])
+        
+        commons_per_project2 = {0 : int(commons[teacher_1][teacher_2]),1 : int(commons[teacher_1][teacher_3]),2 :int(commons[teacher_2][teacher_3])
+       }
+        commons_per_project2 = {k: v for k, v in sorted(commons_per_project2.items(), key=lambda item: item[1])}
+
+        
+        
+        
+        if list(commons_per_project2)[-1] == 0:
+           
+           #print("First is selected")
+           if commons[teacher_1][teacher_2] >= 10:
+             #print(freq_teacher_1,freq_teacher_2)
+             if freq_teacher_1 >= freq_teacher_2:
+                var = teacher_1 
+                freq.iloc[locations[i][0]][0] =  freq_teacher_1 - 1 
+             else:
+                var = teacher_2
+                freq.iloc[locations[i][1]][0] =  freq_teacher_2 - 1 
+             commons[teacher_1][teacher_2]-=1
+             commons[teacher_2][teacher_1] -=1
+           
+        elif list(commons_per_project2)[-1] == 1:
+            
+            #print("second is selected")
+            if commons[teacher_1][teacher_3] >= 10:
+             #print(freq_teacher_1,freq_teacher_3)
+             if freq_teacher_1 >= freq_teacher_3:
+                var = teacher_1
+                freq.iloc[locations[i][0]][0] =  freq_teacher_1 - 1 
+             else:
+                var = teacher_3
+                freq.iloc[locations[i][2]][0] =  freq_teacher_3 - 1 
+             commons[teacher_1][teacher_3]-=1
+             commons[teacher_3][teacher_1] -=1
+           
+
+        elif list(commons_per_project2)[-1] == 2:
+            #print("Third is selected")
+            
+            if commons[teacher_2][teacher_3] >= 10:
+             #print(freq_teacher_2,freq_teacher_3)
+             if freq_teacher_2 >= freq_teacher_3:
+                freq.iloc[locations[i][1]][0] =  freq_teacher_2 - 1 
+                var = teacher_2 
+             else:
+                var = teacher_3
+                freq.iloc[locations[i][2]][0]  = freq_teacher_3 - 1 
+             commons[teacher_2][teacher_3]-=1
+             commons[teacher_3][teacher_2]-=1
+            
+             
+             #var[-1] -= 1
+        
+        test_dict[i] = {var: train_data[i, var]}
+        
+        test_dict.append({})
+        #print("project ",i,"  ",test_dict[i])
+        train_data[i][var] = None
+        
+    #print(freq)    
+        
+        
+        
+    '''
         var = random.choices(locations[i], weights=np.concatenate(freq.iloc[locations[i]].to_numpy()))
         no = var[0]
-        test_dict[i].update({no: train_data[i, no]})
-        train_data[i][no] = None
+        test_dict[i].update({no2: train_data[i, no2]})
+        train_data[i][no2] = None
         test_dict.append(dict())
+    '''
     test_dict = test_dict[:-1]
+    
+    #print(test_dict)
+    #print(commons)
     return train_data, test_dict
 
+    
 
 # calculates error array, root mean square error
 def validation(predictions, test_data):
@@ -194,9 +293,13 @@ def validation(predictions, test_data):
     rmse = 0.0
     for i in range(len(test_data)):
         for key, value in test_data[i].items():
-            rmse += ((predictions[i][key] - value) ** 2)
-            error.append(abs(predictions[i][key] - value))
-
+             if np.isnan(value) == False:
+              
+              rmse += ((predictions[i][key] - value) ** 2)
+              error.append(abs(predictions[i][key] - value))
+             
+             
+    print("Length ",len(error))
     rmse = math.sqrt(rmse / len(test_data))
     return error, rmse
 
@@ -237,9 +340,19 @@ def meanCorrelation_train():
     d = pd.DataFrame(c)
 
     return d
+def standart_deviation_table(data):
+    standart_deviation_table = []
+    mySum = 0
+    for i in range(len(data)):
+      for j in range(len(data)):
 
-
-a = []
+        combinations = df2.iloc[:, [i, j]]
+        combinations_dropped= combinations.dropna()
+        first_column = combinations_dropped[:,0]
+        second_column = combinations_dropped[:,1]
+        
+   
+    return standart_deviation_table
 a2 = []
 a3 = []
 a4 = []
@@ -340,5 +453,5 @@ print("Avarage error rate for theorem 4 is ", sum4 / len(a4))
 
 # dev()
 # meanCorrelation_train()
-
-multi_split(20)
+#print(common_grade_table(df2))
+multi_split(1)
