@@ -1,7 +1,7 @@
 import csv
 from collections import OrderedDict
 import statistics
-
+import copy
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -99,6 +99,44 @@ def dev():
     deviation = pd.DataFrame(deviation)
 
 
+# This model finds every graded index and non-graded index, gets the average of all graded values for same project
+# Then gives prediction for every other non-graded lecturer for same project
+def MLModel_base(data):
+    train = copy.deepcopy(data)
+
+    for i in range(len(train)):
+        temp = []
+        unknown_temp = []
+        temp_sum = 0
+        for a in range(len(train[i])):
+            if pd.notna(train[i][a]):
+                temp.append(a)
+                temp_sum += train[i][a]
+            else:
+                unknown_temp.append(a)
+
+        temp_sum = temp_sum / len(temp)
+        if temp_sum > 100:
+            temp_sum = 100
+        for b in range(len(unknown_temp)):
+            train[i][unknown_temp[b]] = temp_sum
+    return train
+
+
+# control function
+def first_optimization(split_value):
+    train, test = split_data(df2, split_value)
+    train = MLModel_base(train)
+    err, rmse = validation(train, test)
+
+    print("RMSE value: " + str(rmse))
+    print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
+    print()
+    train2 = MLModel_base(df2.to_numpy())
+    err2, rmse2 = validation_source_truth(train2)
+    print("RMSE value: " + str(rmse2))
+    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+
 # The inter relation data 25*25
 def meanCorrelation(train_data):
     a = []
@@ -187,11 +225,11 @@ def common_grade_table(data):
 # Returns trains 2d array and test dictionary source and grade as key and value correspondingly
 def split_data(data, x):
     global var
-    train_data = data.to_numpy().copy()
-    freq = find_frequency(data)
+    train_data = copy.deepcopy(data.to_numpy())
+    freq = find_frequency(pd.DataFrame(train_data))
     freq = pd.DataFrame(freq)
     # print(freq)
-    commons = common_grade_table(df2)
+    commons = common_grade_table(pd.DataFrame(train_data))
     # print(commons)
     locations = [[]]
     test_dict = [{}]
@@ -309,6 +347,25 @@ def validation(predictions, test_data):
     return error, rmse
 
 
+def validation_source_truth(predictions):
+    truth = pd.read_csv("Truth.csv")
+    truth2 = truth.drop('Project ID', inplace=False, axis=1)
+    truth2 = truth2.T.to_numpy().flatten()
+
+    avg_p = []
+    rmse = 0
+    error = []
+    # calculate the mean for all projects
+    for i in range(len(predictions)):
+        avg_p.append(np.mean(predictions[i]))
+    # Calculates RMSE
+    for i in range(len(avg_p)):
+        error.append(abs(avg_p[i] - truth2[i]))
+        rmse += ((avg_p[i] - truth2[i]) ** 2)
+
+    rmse = math.sqrt(rmse / len(avg_p))
+    return error, rmse
+
 def multi_split(a, b):
     error = 0.0
     RMSE = 0.0
@@ -316,7 +373,7 @@ def multi_split(a, b):
         train, test1 = split_data(df2, i)
         pre = MLModelA_simple(meanCorrelation(train), train)
         err, r = validation(pre, test1)
-        print("This is for "+str(i))
+        print("This is for " + str(i))
         print("Here is the mean of error rate: {0:.2f} [Max: {1:.2f}, Min: {2:.2f}]".format(np.mean(err), np.max(err),
                                                                                             np.min(err)))
         print("RMSE: " + str(r))
@@ -482,8 +539,14 @@ def corelation_table(data):
 # print("Avarage percentage error ",(sum2/len(a2)))
 
 
+# commo=common_grade_table(df2)
+# train , test =split_data(df2,2)
+# train = pd.DataFrame(train)
+# train_commo = common_grade_table(train)
+# print()
+
+
 # dev()
 # meanCorrelation_train()
 # print(common_grade_table(df2))
-multi_split(8, 11)
-# print(standart_deviation_table(df2))
+first_optimization(10)
