@@ -1,12 +1,26 @@
+import statistics
+import copy
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import random
 import math
 
+'''
+rows = []
+with open("Implementation\Grading_Assignment.csv","r") as file:
+
+    read = csv.reader(file)
+
+    header = next(read)
+
+    for row in read:
+        rows.append(row)
+
+'''
 df = pd.read_csv("Grading_Assignment.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
+
 
 def infos():
     # First 10 row of the dataset
@@ -51,6 +65,16 @@ def plotting():
     # plt.show()
 
 
+'''
+for i in range(24):
+    for j in range(i+1,25):
+      combinations = df2.iloc[:, [i, j]]
+      commons = combinations.dropna()
+      teacher_x = commons.iloc[0].mean()
+      teacher_y = commons.iloc[1].mean()
+'''
+
+
 def dev():
     deviation = []
     for i in range(25):
@@ -65,6 +89,45 @@ def dev():
 
     deviation = np.array(deviation).reshape(25, 25)
     deviation = pd.DataFrame(deviation)
+
+
+# This model finds every graded index and non-graded index, gets the average of all graded values for same project
+# Then gives prediction for every other non-graded lecturer for same project
+def MLModel_base(data):
+    train = copy.deepcopy(data)
+
+    for i in range(len(train)):
+        temp = []
+        unknown_temp = []
+        temp_sum = 0
+        for a in range(len(train[i])):
+            if pd.notna(train[i][a]):
+                temp.append(a)
+                temp_sum += train[i][a]
+            else:
+                unknown_temp.append(a)
+
+        temp_sum = temp_sum / len(temp)
+        if temp_sum > 100:
+            temp_sum = 100
+        for b in range(len(unknown_temp)):
+            train[i][unknown_temp[b]] = temp_sum
+    return train
+
+
+# control function
+def first_optimization(split_value):
+    train, test = split_data(df2, split_value)
+    train = MLModel_base(train)
+    err, rmse = validation(train, test)
+
+    print("RMSE value: " + str(rmse))
+    print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
+    print()
+    train2 = MLModel_base(df2.to_numpy())
+    err2, rmse2 = validation_source_truth(train2)
+    print("RMSE value: " + str(rmse2))
+    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
 
 
 # The inter relation data 25*25
@@ -91,6 +154,7 @@ def meanCorrelation(train_data):
 # returns predictions
 
 def MLModelA_simple(inter_data, sample_data):
+    corr_table = corelation_table(df2)
     for i in range(len(sample_data)):
         temp = []
         unknown_temp = []
@@ -104,9 +168,11 @@ def MLModelA_simple(inter_data, sample_data):
             tempSum = 0
             for j in range(len(temp)):
                 if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                    corr = inter_data[temp[j]][unknown_temp[b]]
-                    tempSum += sample_data[i][temp[j]]
-                    tempSum += corr
+                    if corr_table[temp[j]][unknown_temp[b]] >= 0.55:
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data[i][temp[j]]
+                        tempSum += corr
+
                 else:
                     continue
             average = tempSum / len(temp)
@@ -123,22 +189,38 @@ def MLModelA_simple(inter_data, sample_data):
 # first element of 1D array correspond to first column in data which is instructor one and so on.
 def find_frequency(data):
     insGradeLen = []
-    mySum = 0
     for i in range(len(data.columns)):
         column = data.iloc[:, [i]]
         column = column.dropna()
-        mySum += len(column)
         insGradeLen.append(len(column))
-    insGradeLen = [x / mySum for x in insGradeLen]
     return insGradeLen
+
+
+# Find how many common grade for each pair of teacher
+def common_grade_table(data):
+    freq = pd.DataFrame()
+    freq2 = []
+    for i in range(25):
+        for j in range(25):
+            combinations = data.iloc[:, [i, j]]
+            commons = combinations.dropna()
+            freq2.append(len(commons.iloc[:, 0]))
+    b = np.array(freq2)
+    c = b.reshape(25, 25)
+    d = pd.DataFrame(c)
+    return d
 
 
 # weighted randomized splitting data train and test by looking the frequency
 # Returns trains 2d array and test dictionary source and grade as key and value correspondingly
-def split_data(data):
-    train_data = data.to_numpy().copy()
-    freq = find_frequency(data)
+def split_data(data, x):
+    global var
+    train_data = copy.deepcopy(data.to_numpy())
+    freq = find_frequency(pd.DataFrame(train_data))
     freq = pd.DataFrame(freq)
+    # print(freq)
+    commons = common_grade_table(pd.DataFrame(train_data))
+    # print(commons)
     locations = [[]]
     test_dict = [{}]
 
@@ -150,12 +232,90 @@ def split_data(data):
     locations = locations[:-1]
 
     for i in range(len(locations)):
+        teacher_1 = locations[i][0]
+        teacher_2 = locations[i][1]
+        teacher_3 = locations[i][2]
+
+        freq_teacher_1 = freq.iloc[locations[i][0]][0]
+        freq_teacher_2 = freq.iloc[locations[i][1]][0]
+        freq_teacher_3 = freq.iloc[locations[i][2]][0]
+
+        commons_per_project = sorted([int(commons[teacher_1][teacher_2]), int(commons[teacher_1][teacher_3]),
+                                      int(commons[teacher_2][teacher_3])])
+
+        commons_per_project2 = {0: int(commons[teacher_1][teacher_2]), 1: int(commons[teacher_1][teacher_3]),
+                                2: int(commons[teacher_2][teacher_3])
+                                }
+        # Sorting dict
+
+        commons_per_project2 = {k: v for k, v in sorted(commons_per_project2.items(), key=lambda item: item[1])}
+
+        # get last item which has max value pair
+        if list(commons_per_project2)[-1] == 0:
+
+            # print("First is selected")
+            if commons[teacher_1][teacher_2] >= x:
+
+                # print(freq_teacher_1,freq_teacher_2)
+                if freq_teacher_1 >= freq_teacher_2:
+                    var = teacher_1
+                    freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
+                else:
+                    var = teacher_2
+                    freq.iloc[locations[i][1]][0] = freq_teacher_2 - 1
+                commons[teacher_1][teacher_2] -= 1
+                commons[teacher_2][teacher_1] -= 1
+
+        elif list(commons_per_project2)[-1] == 1:
+
+            # print("second is selected")
+            if commons[teacher_1][teacher_3] >= x:
+                # print(freq_teacher_1,freq_teacher_3)
+                if freq_teacher_1 >= freq_teacher_3:
+                    var = teacher_1
+                    freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
+                else:
+                    var = teacher_3
+                    freq.iloc[locations[i][2]][0] = freq_teacher_3 - 1
+                commons[teacher_1][teacher_3] -= 1
+                commons[teacher_3][teacher_1] -= 1
+
+
+        elif list(commons_per_project2)[-1] == 2:
+            # print("Third is selected")
+
+            if commons[teacher_2][teacher_3] >= x:
+                # print(freq_teacher_2,freq_teacher_3)
+                if freq_teacher_2 >= freq_teacher_3:
+                    freq.iloc[locations[i][1]][0] = freq_teacher_2 - 1
+                    var = teacher_2
+                else:
+                    var = teacher_3
+                    freq.iloc[locations[i][2]][0] = freq_teacher_3 - 1
+                commons[teacher_2][teacher_3] -= 1
+                commons[teacher_3][teacher_2] -= 1
+
+                # var[-1] -= 1
+
+        test_dict[i] = {var: train_data[i, var]}
+
+        test_dict.append({})
+        # print("project ",i,"  ",test_dict[i])
+        train_data[i][var] = None
+
+    # print(freq)
+
+    '''
         var = random.choices(locations[i], weights=np.concatenate(freq.iloc[locations[i]].to_numpy()))
         no = var[0]
-        test_dict[i].update({no: train_data[i, no]})
-        train_data[i][no] = None
+        test_dict[i].update({no2: train_data[i, no2]})
+        train_data[i][no2] = None
         test_dict.append(dict())
+    '''
     test_dict = test_dict[:-1]
+
+    # print(test_dict)
+    # print(commons)
     return train_data, test_dict
 
 
@@ -165,28 +325,54 @@ def validation(predictions, test_data):
     rmse = 0.0
     for i in range(len(test_data)):
         for key, value in test_data[i].items():
-            rmse += ((predictions[i][key] - value) ** 2)
-            error.append(abs(predictions[i][key] - value))
+            if np.isnan(value) == False:
+                rmse += ((predictions[i][key] - value) ** 2)
 
+                error.append(abs(predictions[i][key] - value))
+
+    print("Length ", len(error))
+    # max_value = max(error)
+    # print([index for index, item in enumerate(error) if item == max_value])
     rmse = math.sqrt(rmse / len(test_data))
     return error, rmse
 
 
-def multi_split(k):
+def validation_source_truth(predictions):
+    truth = pd.read_csv("Truth.csv")
+    truth2 = truth.drop('Project ID', inplace=False, axis=1)
+    truth2 = truth2.T.to_numpy().flatten()
+
+    avg_p = []
+    rmse = 0
+    error = []
+    # calculate the mean for all projects
+    for i in range(len(predictions)):
+        avg_p.append(np.mean(predictions[i]))
+    # Calculates RMSE
+    for i in range(len(avg_p)):
+        error.append(abs(avg_p[i] - truth2[i]))
+        rmse += ((avg_p[i] - truth2[i]) ** 2)
+
+    rmse = math.sqrt(rmse / len(avg_p))
+    return error, rmse
+
+
+def multi_split(a, b):
     error = 0.0
     RMSE = 0.0
-    for i in range(k):
-        train, test1 = split_data(df2)
+    for i in range(a, b):
+        train, test1 = split_data(df2, i)
         pre = MLModelA_simple(meanCorrelation(train), train)
         err, r = validation(pre, test1)
+        print("This is for " + str(i))
         print("Here is the mean of error rate: {0:.2f} [Max: {1:.2f}, Min: {2:.2f}]".format(np.mean(err), np.max(err),
                                                                                             np.min(err)))
         print("RMSE: " + str(r))
         print()
         error += np.mean(err)
         RMSE += r
-    error = error / k
-    RMSE = RMSE / k
+    error = error / (b - a)
+    RMSE = RMSE / (b - a)
     print("Here is the error mean {0:.2f} : ".format(error))
     print("RMSE : {0:.2f} ".format(RMSE))
 
@@ -210,4 +396,40 @@ def meanCorrelation_train():
     return d
 
 
-multi_split(20)
+def standart_deviation_table(data):
+    standart_deviation_table = []
+    mySum = 0
+    for i in range(25):
+        for j in range(25):
+            combinations = data.iloc[:, [i, j]]
+            combinations_dropped = combinations.dropna()
+            first_column = combinations_dropped.iloc[:, 0]
+            second_column = combinations_dropped.iloc[:, 1]
+            column_diffrence = first_column - second_column
+            # population standard deviation
+            standart_deviation_table.append(statistics.pstdev(column_diffrence))
+
+    standart_deviation_table = np.array(standart_deviation_table)
+    standart_deviation_table = standart_deviation_table.reshape(25, 25)
+    return pd.DataFrame(standart_deviation_table)
+
+
+def corelation_table(data):
+    corr_table = []
+    mySum = 0
+    for i in range(25):
+        for j in range(25):
+            combinations = data.iloc[:, [i, j]]
+            combinations_dropped = combinations.dropna()
+            first_column = combinations_dropped.iloc[:, 0]
+            second_column = combinations_dropped.iloc[:, 1]
+            column_diffrence = first_column - second_column
+
+            corr_table.append(statistics.correlation(first_column, second_column))
+
+    corr_table = np.array(corr_table)
+    corr_table = corr_table.reshape(25, 25)
+    return pd.DataFrame(corr_table)
+
+
+first_optimization(10)
