@@ -67,16 +67,6 @@ def plotting():
     # plt.show()
 
 
-'''
-for i in range(24):
-    for j in range(i+1,25):
-      combinations = df2.iloc[:, [i, j]]
-      commons = combinations.dropna()
-      teacher_x = commons.iloc[0].mean()
-      teacher_y = commons.iloc[1].mean()
-'''
-
-
 def dev():
     deviation = []
     for i in range(25):
@@ -117,22 +107,7 @@ def MLModel_base(data):
     return train
 
 
-# control function
-def first_optimization(split_value):
-    train, test = split_data(df2, split_value)
-    train = MLModel_base(train)
-    err, rmse = validation(train, test)
-
-    print("RMSE value: " + str(rmse))
-    print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
-    print()
-    train2 = MLModel_base(df2.to_numpy())
-    err2, rmse2 = validation_source_truth(train2)
-    print("RMSE value: " + str(rmse2))
-    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
-
-
-# The inter relation data 25*25
+# The inter relation data 25*25, common project difference matrix
 def meanCorrelation(train_data):
     a = []
     train_data = pd.DataFrame(train_data)
@@ -142,7 +117,11 @@ def meanCorrelation(train_data):
             commons = combinations.dropna()
             teacher_x = commons.iloc[:, 0].mean()
             teacher_y = commons.iloc[:, 1].mean()
-            a.append(teacher_x - teacher_y)
+            var = teacher_x - teacher_y
+            if var > 0:
+                a.append(math.ceil(var))
+            else:
+                a.append(math.floor(var))
 
     b = np.array(a)
     c = b.reshape(25, 25)
@@ -150,18 +129,77 @@ def meanCorrelation(train_data):
     return d
 
 
+def MLModel_(inter_data, sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+
+        for b in range(len(unknown_temp)):
+            tempSum = 0
+            for j in range(len(temp)):
+                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                    corr = inter_data[temp[j]][unknown_temp[b]]
+                    tempSum += sample_data1[i][temp[j]]
+                    tempSum += corr
+
+                else:
+                    continue
+            average = tempSum / len(temp)
+            sample_data1[i][unknown_temp[b]] = average
+
+    return sample_data1
+
+
+def MLModel_VariationA(inter_data, sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        for a in range(len(sample_data1 [i])):
+            if pd.notna(sample_data1 [i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+
+        for b in range(len(unknown_temp)):
+            tempSum = 0
+            for j in range(len(temp)):
+                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                    corr = inter_data[temp[j]][unknown_temp[b]]
+                    tempSum += sample_data1 [i][temp[j]]
+                    tempSum += corr
+
+                else:
+                    continue
+            average = tempSum / len(temp)
+            if average >= 100:
+                average = 100
+            elif average <= 0:
+                average = 0
+            sample_data1 [i][unknown_temp[b]] = average
+
+    return sample_data1
+
+
 # Given a data which has for each instructor's pairwise inter-relation
 # As a mean difference with other instructors predicts not given instructor using sample data
 # (sample data should be 2d array)
 # returns predictions
 
-def MLModelA_simple(inter_data, sample_data):
+def MLModel_VariationB(inter_data, sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
     corr_table = correlation_table(df2)
-    for i in range(len(sample_data)):
+    for i in range(len(sample_data1)):
         temp = []
         unknown_temp = []
-        for a in range(len(sample_data[i])):
-            if pd.notna(sample_data[i][a]):
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
                 temp.append(a)
             else:
                 unknown_temp.append(a)
@@ -172,7 +210,7 @@ def MLModelA_simple(inter_data, sample_data):
                 if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
                     if corr_table[temp[j]][unknown_temp[b]] >= 0.55:
                         corr = inter_data[temp[j]][unknown_temp[b]]
-                        tempSum += sample_data[i][temp[j]]
+                        tempSum += sample_data1[i][temp[j]]
                         tempSum += corr
 
                 else:
@@ -182,9 +220,9 @@ def MLModelA_simple(inter_data, sample_data):
                 average = 100
             elif average <= 0:
                 average = 0
-            sample_data[i][unknown_temp[b]] = average
+            sample_data1[i][unknown_temp[b]] = average
 
-    return sample_data
+    return sample_data1
 
 
 # for each instructor's grades finds the frequency and returns 1D array
@@ -272,9 +310,6 @@ def split_data(data, x):
         freq_teacher_2 = freq.iloc[locations[i][1]][0]
         freq_teacher_3 = freq.iloc[locations[i][2]][0]
 
-        commons_per_project = sorted([int(commons[teacher_1][teacher_2]), int(commons[teacher_1][teacher_3]),
-                                      int(commons[teacher_2][teacher_3])])
-
         commons_per_project2 = {0: int(commons[teacher_1][teacher_2]), 1: int(commons[teacher_1][teacher_3]),
                                 2: int(commons[teacher_2][teacher_3])
                                 }
@@ -346,6 +381,7 @@ def validation(predictions, test_data):
 
     print("Length ", len(error))
     rmse = math.sqrt(rmse / len(test_data))
+
     return error, rmse
 
 
@@ -374,7 +410,7 @@ def multi_split(a, b):
     RMSE = 0.0
     for i in range(a, b):
         train, test1 = split_data(df2, i)
-        pre = MLModelA_simple(meanCorrelation(train), train)
+        pre = MLModel_VariationB(meanCorrelation(train), train)
         err, r = validation(pre, test1)
         print("This is for " + str(i))
         print("Here is the mean of error rate: {0:.2f} [Max: {1:.2f}, Min: {2:.2f}]".format(np.mean(err), np.max(err),
@@ -442,4 +478,70 @@ def correlation_table(data):
     return pd.DataFrame(corr_table)
 
 
-first_optimization(10)
+# control function
+def first_optimization(split_value):
+    train, test = split_data(df2, split_value)
+    train = MLModel_base(train)
+    err, rmse = validation(train, test)
+
+    print("RMSE value: " + str(rmse))
+    print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
+    print("Error average: " + str(np.mean(err)))
+    print()
+    train2 = MLModel_base(df2.to_numpy())
+    err2, rmse2 = validation_source_truth(train2)
+    print("RMSE value: " + str(rmse2))
+    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+    print("Error average:" + str(np.mean(err2)))
+
+
+# Control function for MLmodel_VariationA
+def second_optimization(split_value):
+    train, test = split_data(df2, split_value)
+    train = MLModel_(meanCorrelation(train), train)
+    err, rmse = validation(train, test)
+    print("RMSE value: " + str(rmse))
+    print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
+    print("Error average: " + str(np.mean(err)))
+    print()
+    train2 = MLModel_(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+    err2, rmse2 = validation_source_truth(train2)
+    print("RMSE value: " + str(rmse2))
+    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+    print("Error average:" + str(np.mean(err2)))
+
+
+def third_optimization(split_value):
+    train, test = split_data(df2, split_value)
+    train = MLModel_VariationA(meanCorrelation(train), train)
+    err, rmse = validation(train, test)
+    print("RMSE value: " + str(rmse))
+    print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
+    print("Error average: " + str(np.mean(err)))
+    print()
+    train2 = MLModel_VariationA(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+    err2, rmse2 = validation_source_truth(train2)
+    print("RMSE value: " + str(rmse2))
+    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+    print("Error average:" + str(np.mean(err2)))
+
+
+def fourth_optimization(split_value):
+    train, test = split_data(df2, split_value)
+    train = MLModel_VariationB(meanCorrelation(train), train)
+    err, rmse = validation(train, test)
+    print("RMSE value: " + str(rmse))
+    print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
+    print("Error average: " + str(np.mean(err)))
+    print()
+    train2 = MLModel_VariationB(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+    err2, rmse2 = validation_source_truth(train2)
+    print("RMSE value: " + str(rmse2))
+    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+    print("Error average:" + str(np.mean(err2)))
+
+
+# first_optimization(10)
+# second_optimization(10)
+third_optimization(10)
+fourth_optimization(10)
