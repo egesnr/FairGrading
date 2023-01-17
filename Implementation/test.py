@@ -1,5 +1,7 @@
 import statistics
 import copy
+import random
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -154,7 +156,7 @@ def meanCorrelation(train_data):
 # returns predictions
 
 def MLModelA_simple(inter_data, sample_data):
-    corr_table = corelation_table(df2)
+    corr_table = correlation_table(df2)
     for i in range(len(sample_data)):
         temp = []
         unknown_temp = []
@@ -211,16 +213,46 @@ def common_grade_table(data):
     return d
 
 
-# weighted randomized splitting data train and test by looking the frequency
-# Returns trains 2d array and test dictionary source and grade as key and value correspondingly
+def split_data_randomized(data):
+    train_data = copy.deepcopy(data.to_numpy())
+    freq = find_frequency(data)
+    freq = pd.DataFrame(freq)
+    locations = [[]]
+    test_dict = [{}]
+
+    for i in range(len(train_data)):
+        for j in range(len(train_data[i])):
+            if pd.notna(train_data[i][j]):
+                locations[i].append(j)
+        locations.append([])
+    locations = locations[:-1]
+
+    for i in range(len(locations)):
+        freq_teacher_1 = freq.iloc[locations[i][0]][0]
+        freq_teacher_2 = freq.iloc[locations[i][1]][0]
+        freq_teacher_3 = freq.iloc[locations[i][2]][0]
+
+        var = random.choices(locations[i], weights=[freq_teacher_1, freq_teacher_2, freq_teacher_3])
+        no = var[0]
+        if no == locations[i][0]:
+            freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
+        elif no == locations[i][1]:
+            freq.iloc[locations[i][1]][0] = freq_teacher_2 - 1
+        elif no == locations[i][2]:
+            freq.iloc[locations[i][2]][0] = freq_teacher_3 - 1
+        test_dict[i].update({no: train_data[i, no]})
+        train_data[i][no] = None
+        test_dict.append(dict())
+    test_dict = test_dict[:-1]
+    return train_data, test_dict
+
+
 def split_data(data, x):
     global var
     train_data = copy.deepcopy(data.to_numpy())
     freq = find_frequency(pd.DataFrame(train_data))
     freq = pd.DataFrame(freq)
-    # print(freq)
     commons = common_grade_table(pd.DataFrame(train_data))
-    # print(commons)
     locations = [[]]
     test_dict = [{}]
 
@@ -253,10 +285,8 @@ def split_data(data, x):
         # get last item which has max value pair
         if list(commons_per_project2)[-1] == 0:
 
-            # print("First is selected")
             if commons[teacher_1][teacher_2] >= x:
 
-                # print(freq_teacher_1,freq_teacher_2)
                 if freq_teacher_1 >= freq_teacher_2:
                     var = teacher_1
                     freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
@@ -268,9 +298,8 @@ def split_data(data, x):
 
         elif list(commons_per_project2)[-1] == 1:
 
-            # print("second is selected")
             if commons[teacher_1][teacher_3] >= x:
-                # print(freq_teacher_1,freq_teacher_3)
+
                 if freq_teacher_1 >= freq_teacher_3:
                     var = teacher_1
                     freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
@@ -282,10 +311,9 @@ def split_data(data, x):
 
 
         elif list(commons_per_project2)[-1] == 2:
-            # print("Third is selected")
 
             if commons[teacher_2][teacher_3] >= x:
-                # print(freq_teacher_2,freq_teacher_3)
+
                 if freq_teacher_2 >= freq_teacher_3:
                     freq.iloc[locations[i][1]][0] = freq_teacher_2 - 1
                     var = teacher_2
@@ -295,27 +323,13 @@ def split_data(data, x):
                 commons[teacher_2][teacher_3] -= 1
                 commons[teacher_3][teacher_2] -= 1
 
-                # var[-1] -= 1
-
         test_dict[i] = {var: train_data[i, var]}
 
         test_dict.append({})
-        # print("project ",i,"  ",test_dict[i])
         train_data[i][var] = None
 
-    # print(freq)
-
-    '''
-        var = random.choices(locations[i], weights=np.concatenate(freq.iloc[locations[i]].to_numpy()))
-        no = var[0]
-        test_dict[i].update({no2: train_data[i, no2]})
-        train_data[i][no2] = None
-        test_dict.append(dict())
-    '''
     test_dict = test_dict[:-1]
 
-    # print(test_dict)
-    # print(commons)
     return train_data, test_dict
 
 
@@ -331,8 +345,6 @@ def validation(predictions, test_data):
                 error.append(abs(predictions[i][key] - value))
 
     print("Length ", len(error))
-    # max_value = max(error)
-    # print([index for index, item in enumerate(error) if item == max_value])
     rmse = math.sqrt(rmse / len(test_data))
     return error, rmse
 
@@ -398,7 +410,6 @@ def meanCorrelation_train():
 
 def standart_deviation_table(data):
     standart_deviation_table = []
-    mySum = 0
     for i in range(25):
         for j in range(25):
             combinations = data.iloc[:, [i, j]]
@@ -414,9 +425,8 @@ def standart_deviation_table(data):
     return pd.DataFrame(standart_deviation_table)
 
 
-def corelation_table(data):
+def correlation_table(data):
     corr_table = []
-    mySum = 0
     for i in range(25):
         for j in range(25):
             combinations = data.iloc[:, [i, j]]
