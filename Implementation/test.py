@@ -20,10 +20,10 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("Grading_Assignment.csv")
+#df = pd.read_csv("Grading_Assignment.csv")
 
 
-# df = pd.read_csv("Implementation\Grading_Assignment.csv")
+df = pd.read_csv("Implementation\Grading_Assignment.csv")
 
 
 def infos():
@@ -162,6 +162,7 @@ def meanCorrelation(train_data):
 
 def MLModelA_simple(inter_data, sample_data):
     corr_table = corelation_table(df2)
+    corr_table.to_csv("csv3.csv")
     for i in range(len(sample_data)):
         temp = []
         unknown_temp = []
@@ -191,6 +192,41 @@ def MLModelA_simple(inter_data, sample_data):
 
     return sample_data
 
+def collaborative(sample_data):
+    corr_table = corelation_table(df2)
+    corr_table.to_csv("csv3.csv")
+    for i in range(len(sample_data)):
+        temp = []
+        unknown_temp = []
+        for a in range(len(sample_data[i])):
+            if pd.notna(sample_data[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+
+        for b in range(len(unknown_temp)):
+            tempSum = 0
+            temp_array = []
+            sample_data_df = pd.DataFrame(sample_data)
+            for j in range(len(temp)):
+                        
+                        dropped = sample_data_df[:][temp[j]].dropna()
+                        adjusted =  sample_data[i][temp[j]] - dropped.mean()
+                        corr = corr_table[temp[j]][unknown_temp[b]]
+                        weighted = adjusted*corr
+                        temp_array.append([weighted,corr])
+            
+            
+            average = sum(temp_array[:][0])/sum(temp_array[:][1])
+            dropped2 = sample_data_df[:][unknown_temp[b]].dropna()
+            average = average + dropped2.mean()
+            if average >= 100:
+                average = 100
+            elif average <= 0:
+                average = 0
+            sample_data[i][unknown_temp[b]] = average
+
+    return sample_data
 
 # for each instructor's grades finds the frequency and returns 1D array
 # first element of 1D array correspond to first column in data which is instructor one and so on.
@@ -325,7 +361,7 @@ def split_data(data, x):
     test_dict = test_dict[:-1]
 
     # print(test_dict)
-    # print(commons)
+    commons.to_csv("csv2.csv")
     return train_data, test_dict
 
 
@@ -337,7 +373,6 @@ def validation(predictions, test_data):
         for key, value in test_data[i].items():
             if np.isnan(value) == False:
                 rmse += ((predictions[i][key] - value) ** 2)
-
                 error.append(abs(predictions[i][key] - value))
 
     print("Length ", len(error))
@@ -348,7 +383,7 @@ def validation(predictions, test_data):
 
 
 def validation_source_truth(predictions):
-    truth = pd.read_csv("Truth.csv")
+    truth = pd.read_csv("Implementation\Truth.csv")
     truth2 = truth.drop('Project ID', inplace=False, axis=1)
     truth2 = truth2.T.to_numpy().flatten()
 
@@ -371,7 +406,7 @@ def multi_split(a, b):
     RMSE = 0.0
     for i in range(a, b):
         train, test1 = split_data(df2, i)
-        pre = MLModelA_simple(meanCorrelation(train), train)
+        pre = collaborative( train)
         err, r = validation(pre, test1)
         print("This is for " + str(i))
         print("Here is the mean of error rate: {0:.2f} [Max: {1:.2f}, Min: {2:.2f}]".format(np.mean(err), np.max(err),
@@ -434,11 +469,13 @@ def corelation_table(data):
             second_column = combinations_dropped.iloc[:, 1]
             column_diffrence = first_column - second_column
 
-            corr_table.append(statistics.correlation(first_column, second_column))
+            corr_table.append(round(statistics.correlation(first_column, second_column),2))
 
     corr_table = np.array(corr_table)
     corr_table = corr_table.reshape(25, 25)
     return pd.DataFrame(corr_table)
+
+
 
 
 # a2 = []
@@ -549,4 +586,8 @@ def corelation_table(data):
 # dev()
 # meanCorrelation_train()
 # print(common_grade_table(df2))
-first_optimization(10)
+#first_optimization(10)
+train2 = collaborative(df2.to_numpy())
+err2, rmse2 = validation_source_truth(train2)
+print("RMSE value: " + str(rmse2))
+print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
