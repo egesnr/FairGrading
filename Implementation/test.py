@@ -156,64 +156,6 @@ def MLModel_(inter_data, sample_data):
     return sample_data1
 
 
-def MLModel_VariationC(inter_data, sample_data):
-    sample_data1 = copy.deepcopy(sample_data)
-    corr_table = correlation_table(df2)
-    for i in range(len(sample_data1)):
-        temp = []
-        unknown_temp = []
-        for a in range(len(sample_data1[i])):
-            if pd.notna(sample_data1[i][a]):
-                temp.append(a)
-            else:
-                unknown_temp.append(a)
-
-        for b in range(len(unknown_temp)):
-            tempSum = 0
-            for j in range(len(temp)):
-                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                    if corr_table[temp[j]][unknown_temp[b]] >= 0.55:
-                        corr = inter_data[temp[j]][unknown_temp[b]]
-                        tempSum += sample_data1[i][temp[j]]
-                        tempSum += corr
-
-                else:
-                    continue
-            average = tempSum / len(temp)
-            if average > 100:
-                tempSum = 0
-                for j in range(len(temp)):
-                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                        corr = inter_data[temp[j]][unknown_temp[b]]
-                        tempSum += sample_data1[i][temp[j]]
-                        if corr < 0:
-                            tempSum += corr
-                        elif corr > 0:
-                            tempSum += math.log(corr,1.5)
-                    else:
-                        continue
-                average = tempSum / len(temp)
-                if average > 100:
-                    average = 100
-            elif average < 0:
-                for j in range(len(temp)):
-                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                        corr = inter_data[temp[j]][unknown_temp[b]]
-                        tempSum += sample_data1[i][temp[j]]
-                        if corr < 0:
-                            tempSum -= math.log(abs(corr),1.8)
-                        elif corr > 0:
-                            tempSum += corr
-                    else:
-                        continue
-                average = tempSum / len(temp)
-                if average < 0:
-                    average = 0
-            sample_data1[i][unknown_temp[b]] = average
-
-    return sample_data1
-
-
 def MLModel_VariationA(inter_data, sample_data):
     sample_data1 = copy.deepcopy(sample_data)
     for i in range(len(sample_data1)):
@@ -282,6 +224,100 @@ def MLModel_VariationB(inter_data, sample_data):
 
     return sample_data1
 
+
+def MLModel_VariationC(inter_data, sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+
+        for b in range(len(unknown_temp)):
+            tempSum = 0
+            for j in range(len(temp)):
+                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                    corr = inter_data[temp[j]][unknown_temp[b]]
+                    tempSum += sample_data1[i][temp[j]]
+                    tempSum += corr
+
+                else:
+                    continue
+            average = tempSum / len(temp)
+            if average > 100:
+                tempSum = 0
+                for j in range(len(temp)):
+                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data1[i][temp[j]]
+                        if corr < 0:
+                            tempSum += corr
+                        elif corr > 0:
+                            tempSum += math.log(corr, 1.5)
+                    else:
+                        continue
+                average = tempSum / len(temp)
+
+            elif average < 0:
+                for j in range(len(temp)):
+                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data1[i][temp[j]]
+                        if corr < 0:
+                            tempSum -= math.log(abs(corr), 1.8)
+                        elif corr > 0:
+                            tempSum += corr
+                    else:
+                        continue
+                average = tempSum / len(temp)
+            sample_data1[i][unknown_temp[b]] = average
+
+    return sample_data1
+
+
+def MLModel_collaborative(inter_data, sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    # Burda niye df2 kullanıyoruz çünkü veri ayırma yapınca yeteri kadar ortak veri bulamıyoruz ve hata veriyor
+    corr_table = correlation_table(df2)
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+
+        for b in range(len(unknown_temp)):
+            tempSum = 0
+            sample_data1_df = pd.DataFrame(sample_data1)
+            corrSum = 0
+            for j in range(len(temp)):
+                # check to if there is no relation between some pairs
+                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+
+                    common_diff = inter_data[temp[j]][unknown_temp[b]]
+                    adjusted = sample_data[i][temp[j]] + common_diff
+                    corr = corr_table[temp[j]][unknown_temp[b]]
+                    weighted = adjusted * corr
+
+                    corrSum += abs(corr)
+                    tempSum += weighted
+
+                else:
+                    continue
+            average = tempSum / corrSum
+
+            if average > 100:
+                average = 100
+            elif average < 0:
+                average = 0
+            sample_data1[i][unknown_temp[b]] = average
+
+    return sample_data1
 
 # for each instructor's grades finds the frequency and returns 1D array
 # first element of 1D array correspond to first column in data which is instructor one and so on.
@@ -553,7 +589,6 @@ def first_optimization(split_value):
     print("Error average:" + str(np.mean(err2)))
 
 
-# Control function for MLmodel_VariationA
 def second_optimization(split_value):
     train, test = split_data(df2, split_value)
     train = MLModel_(meanCorrelation(train), train)
@@ -569,6 +604,7 @@ def second_optimization(split_value):
     print("Error average:" + str(np.mean(err2)))
 
 
+# Control function for MLModel_VariationA
 def third_optimization(split_value):
     train, test = split_data(df2, split_value)
     train = MLModel_VariationA(meanCorrelation(train), train)
@@ -586,7 +622,6 @@ def third_optimization(split_value):
 
 def fourth_optimization(split_value):
     train, test = split_data(df2, split_value)
-    meanCorrelation(train).to_csv("differ_aSplit.csv")
     train = MLModel_VariationB(meanCorrelation(train), train)
     err, rmse = validation(train, test)
     print("RMSE value: " + str(rmse))
@@ -602,7 +637,6 @@ def fourth_optimization(split_value):
 
 def fifth_optimization(split_value):
     train, test = split_data(df2, split_value)
-    meanCorrelation(train).to_csv("differ_aSplit.csv")
     train = MLModel_VariationC(meanCorrelation(train), train)
     err, rmse = validation(train, test)
     print("RMSE value: " + str(rmse))
@@ -616,8 +650,24 @@ def fifth_optimization(split_value):
     print("Error average:" + str(np.mean(err2)))
 
 
-# first_optimization(10)
+def sixth_optimization(split_value):
+    train, test = split_data(df2, split_value)
+    train = MLModel_collaborative(meanCorrelation(train), train)
+    err, rmse = validation(train, test)
+    print("RMSE value: " + str(rmse))
+    print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
+    print("Error average: " + str(np.mean(err)))
+    print()
+
+    train2 = MLModel_collaborative(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+    err2, rmse2 = validation_source_truth(train2)
+    print("RMSE value: " + str(rmse2))
+    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+    print("Error average:" + str(np.mean(err2)))
+
+first_optimization(10)
 # second_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
-fifth_optimization(10)
+# fifth_optimization(10)
+sixth_optimization(10)
