@@ -247,7 +247,9 @@ def MLModel_VariationC(inter_data, sample_data):
                 else:
                     continue
             average = tempSum / len(temp)
-            if average > 100:
+            if average > 100: # 150
+                # x/ x-1 f(x) = aktivasyon
+                # average aldıktan sonra logaritmik bir fonsiyona koy onun sonucu yaz
                 tempSum = 0
                 for j in range(len(temp)):
                     if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
@@ -300,8 +302,12 @@ def MLModel_collaborative(inter_data, sample_data):
                 if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
 
                     common_diff = inter_data[temp[j]][unknown_temp[b]]
+
                     adjusted = sample_data[i][temp[j]] + common_diff
+
+                    # Pearson's Correlation
                     corr = corr_table[temp[j]][unknown_temp[b]]
+
                     weighted = adjusted * corr
 
                     corrSum += abs(corr)
