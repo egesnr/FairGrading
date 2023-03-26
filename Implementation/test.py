@@ -325,6 +325,57 @@ def MLModel_collaborative(inter_data, sample_data):
 
     return sample_data1
 
+def NN(sample_data,inter_data):
+    data = np.array([])
+    sample_data1 = copy.deepcopy(sample_data)
+    corr_table = correlation_table(df2)
+    corr_table.to_csv("csv3.csv")
+    for i in range(len(sample_data)):
+          temp = []
+          temp2 = []
+          for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                
+                    temp.append(a)
+                    temp2.append(sample_data[i][a])
+          temp2.append(inter_data[temp[0]][temp[1]])
+          temp2.append(inter_data[temp[0]][temp[2]])
+          temp2.append(inter_data[temp[1]][temp[2]])
+          temp2.append(corr_table[temp[0]][temp[1]])
+          temp2.append(corr_table[temp[0]][temp[2]])
+          temp2.append(corr_table[temp[1]][temp[2]])
+          
+
+         
+          data = np.append(data,temp2)
+    data = data.reshape(1000,9)
+    
+    
+    
+    y = data[:,0]
+    
+    data = data[:,1:]
+    #print(y)
+    X_train,X_test,y_train,y_test = train_test_split(data,y,test_size = 0.3,random_state= 0)
+    lr = LinearRegression()
+    lr.fit(X_train,y_train)
+
+    #test_pre = lr.predict(y_test)
+    train_pre = lr.predict(X_test)
+    print(abs(y_test - train_pre).mean())
+    print("Mean squared error: %.2f" % mean_squared_error(y_test, train_pre))
+    
+    model_SVR = svm.SVR()
+    model_SVR.fit(X_train,y_train)
+    Y_pred = model_SVR.predict(X_test)
+    print(abs(y_test - Y_pred).mean())
+    print("Mean squared error: %.2f" % mean_squared_error(y_test, Y_pred))
+    
+    model_RFR = RandomForestRegressor(n_estimators=10)
+    model_RFR.fit(X_train, y_train)
+    Y_predd = model_RFR.predict(X_test)
+    print(abs(y_test - Y_predd).mean())
+    print("Mean squared error: %.2f" % mean_squared_error(y_test, Y_predd))
 # for each instructor's grades finds the frequency and returns 1D array
 # first element of 1D array correspond to first column in data which is instructor one and so on.
 def find_frequency(data):
