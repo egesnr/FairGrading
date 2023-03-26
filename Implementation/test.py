@@ -7,6 +7,16 @@ import numpy as np
 import pandas as pd
 import math
 
+import tensorflow as tf
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV, ElasticNetCV
+from sklearn.metrics import mean_squared_error, make_scorer
+from sklearn import svm
+from sklearn.svm import SVC
+from sklearn.metrics import mean_absolute_percentage_error
+from sklearn.ensemble import RandomForestRegressor
+
 '''
 rows = []
 with open("Implementation\Grading_Assignment.csv","r") as file:
@@ -19,7 +29,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("Grading_Assignment.csv")
+df = pd.read_csv("Implementation\Grading_Assignment.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -282,41 +292,244 @@ def MLModel_VariationB(inter_data, sample_data):
 
     return sample_data1
 
-def collaborative(sample_data):
+
+def NN(sample_data,inter_data):
+    data = np.array([])
+    sample_data1 = copy.deepcopy(sample_data)
     corr_table = correlation_table(df2)
     corr_table.to_csv("csv3.csv")
     for i in range(len(sample_data)):
+          temp = []
+          temp2 = []
+          for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                
+                    temp.append(a)
+                    temp2.append(sample_data[i][a])
+          temp2.append(inter_data[temp[0]][temp[1]])
+          temp2.append(inter_data[temp[0]][temp[2]])
+          temp2.append(inter_data[temp[1]][temp[2]])
+          temp2.append(corr_table[temp[0]][temp[1]])
+          temp2.append(corr_table[temp[0]][temp[2]])
+          temp2.append(corr_table[temp[1]][temp[2]])
+          
+
+         
+          data = np.append(data,temp2)
+    data = data.reshape(1000,9)
+    
+    
+    
+    y = data[:,0]
+    
+    data = data[:,1:]
+    #print(y)
+    X_train,X_test,y_train,y_test = train_test_split(data,y,test_size = 0.3,random_state= 0)
+    lr = LinearRegression()
+    lr.fit(X_train,y_train)
+
+    #test_pre = lr.predict(y_test)
+    train_pre = lr.predict(X_test)
+    print(abs(y_test - train_pre).mean())
+    print("Mean squared error: %.2f" % mean_squared_error(y_test, train_pre))
+    
+    model_SVR = svm.SVR()
+    model_SVR.fit(X_train,y_train)
+    Y_pred = model_SVR.predict(X_test)
+    print(abs(y_test - Y_pred).mean())
+    print("Mean squared error: %.2f" % mean_squared_error(y_test, Y_pred))
+    
+    model_RFR = RandomForestRegressor(n_estimators=10)
+    model_RFR.fit(X_train, y_train)
+    Y_predd = model_RFR.predict(X_test)
+    print(abs(y_test - Y_predd).mean())
+    print("Mean squared error: %.2f" % mean_squared_error(y_test, Y_predd))
+          
+def collaborative(sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    corr_table = correlation_table(df2)
+    corr_table.to_csv("csv3.csv")
+    for i in range(len(sample_data1)):
         temp = []
-        unknown_temp = []
-        for a in range(len(sample_data[i])):
-            if pd.notna(sample_data[i][a]):
+        unknown_temp =[]
+        teacher_list = []
+        teacher_dic= {'one':0,'two':0,'three':0}
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
                 temp.append(a)
             else:
                 unknown_temp.append(a)
+        sample_data_df = pd.DataFrame(sample_data1)
+        dropped_1 = sample_data_df.iloc[:,[temp[0],temp[1]]].dropna()
+        dropped_1_1 = dropped_1.drop(index=i)
+        cor_1 = statistics.correlation(dropped_1.iloc[:,0], dropped_1.iloc[:,1])
+        cor_1_1 = statistics.correlation(dropped_1_1.iloc[:,0], dropped_1_1.iloc[:,1])
+        teacher_list.append(cor_1_1/cor_1)
 
+        dropped2 = sample_data_df.iloc[:,[temp[0],temp[2]]].dropna()
+        dropped2_2 = dropped2.drop(index=i)
+        cor_2 = statistics.correlation(dropped2.iloc[:,0], dropped2.iloc[:,1])
+        cor_2_2 = statistics.correlation(dropped2_2.iloc[:,0], dropped2_2.iloc[:,1])
+        teacher_list.append(cor_2_2/cor_2)
+
+
+        dropped3 = sample_data_df.iloc[:,[temp[1],temp[2]]].dropna()
+        dropped3_3 = dropped3.drop(index=i)
+        cor_3 = statistics.correlation(dropped3.iloc[:,0], dropped3.iloc[:,1])
+        cor_3_3 = statistics.correlation(dropped3_3.iloc[:,0], dropped3_3.iloc[:,1])
+        teacher_list.append(cor_3_3/cor_3)
+        teacher_dic['one'] = (teacher_list[0] + teacher_list[1]) / 2
+        teacher_dic['two'] = (teacher_list[0] + teacher_list[2]) / 2
+        teacher_dic['three'] = (teacher_list[1] + teacher_list[2]) / 2
+
+        #sorted_teachers = sorted(unknown_temp.items(), key=lambda x:x[1])
         for b in range(len(unknown_temp)):
             tempSum = 0
-            temp_array = []
-            sample_data_df = pd.DataFrame(sample_data)
+            avg_sum = 0
+            total_len = 0
+            total_z = []
+            temp_array = np.array([])
+            
             for j in range(len(temp)):
-                        
-                        dropped = sample_data_df[:][temp[j]].dropna()
-                        adjusted =  sample_data[i][temp[j]] - dropped.mean()
+                        index = 0
+                        weight = list(teacher_dic.values())[j]
+                        dropped = sample_data_df.iloc[:,[temp[j],unknown_temp[b]]].dropna()
+                        adjusted =  sample_data_df.iloc[i,temp[j]] - dropped[temp[j]].mean()
+                        tempSum += dropped[unknown_temp[b]].mean()
+                        #print(adjusted)
+                        #mean_diff = inter_data[temp[j]][unknown_temp[b]]
                         corr = corr_table[temp[j]][unknown_temp[b]]
-                        weighted = adjusted*corr
-                        temp_array.append([weighted,corr])
-            
-            
-            average = sum(temp_array[:][0])/sum(temp_array[:][1])
-            dropped2 = sample_data_df[:][unknown_temp[b]].dropna()
-            average = average + dropped2.mean()
+
+                        '''
+                        z_score =  abs(adjusted) / statistics.stdev(dropped[temp[j]])
+                        if z_score <= 1:
+                            
+                            weight = 0.8
+                        elif z_score > 1 and z_score <= 2:
+                            weight = 0.8
+                        elif z_score > 2 and z_score <= 3:
+                            
+                            weight = 0.05
+                        else:
+                             
+                            weight = 0.01 
+                        '''
+                        #common_length = len(dropped)
+                        #total_len += common_length
+                        #total_z.append(weight)
+                        weighted = adjusted  *corr*weight
+                        
+                        temp_array = np.append(temp_array,[weighted,corr*weight])
+            temp_array = temp_array.reshape((len(temp), 2))
+            ''' 
+            if max(total_z.values()) == 2:
+              x = max(total_z, key = total_z.get)
+              if x == 'one':
+               selected = temp_array[temp_array[:, 2] == 1]
+               not_selected = temp_array[temp_array[:, 2] != 1]
+               not_selected[:, 0:2]*=0.4
+               
+               #avg_sum += not_sum_selected*0.4
+               selected[:, 0:2]*=0.6
+               final = np.append(selected,not_selected,axis=0)
+               avg_sum = sum(final[:,0])/sum(final[:,1])
+               
+               #avg_sum += s
+              elif x == 'two':
+               selected = temp_array[temp_array[:, 2] == 2]
+               not_selected = temp_array[temp_array[:, 2] != 2]
+               not_selected[:, 0:2]*=0.4
+               
+               #avg_sum += not_sum_selected*0.4
+               selected[:, 0:2]*=0.6
+               final = np.append(selected,not_selected,axis=0)
+               avg_sum = sum(final[:,0])/sum(final[:,1])
+               
+               
+               #avg_sum += s
+              elif x == 'three':
+               selected = temp_array[temp_array[:, 2] == 3]
+               not_selected = temp_array[temp_array[:, 2] != 3]
+               not_selected[:, 0:2]*=0.4
+               
+               #avg_sum += not_sum_selected*0.4
+               selected[:, 0:2]*=0.6
+               final = np.append(selected,not_selected,axis=0)
+               avg_sum = sum(final[:,0])/sum(final[:,1])
+               
+               #avg_sum += sum_selected*1.2
+               #avg_sum = avg_sum/1.6
+
+              elif x == 'four':
+               selected = temp_array[temp_array[:, 2] == 4]
+               not_selected = temp_array[temp_array[:, 2] != 4]
+               not_selected[:, 0:2]*=0.4
+               
+               #avg_sum += not_sum_selected*0.4
+               selected[:, 0:2]*=0.6
+               final = np.append(selected,not_selected,axis=0)
+               avg_sum = sum(final[:,0])/sum(final[:,1])
+               
+               #avg_sum += sum_selected*1.2
+               #avg_sum = avg_sum/1.6
+            else:
+                avg_sum = np.sum(temp_array[:, 0])/np.sum(temp_array[:, 1])
+            #average = sum(temp_array[:,0])/(sum(temp_array[:,1]))
+            '''
+            average = sum(temp_array[:,0])/(sum(temp_array[:,1]))
+            #average = average + (tempSum/total_len)
+            #average = round(average)
+            #average = avg_sum
+            average += tempSum/3
+            average = round(average)
             if average >= 100:
                 average = 100
             elif average <= 0:
                 average = 0
-            sample_data[i][unknown_temp[b]] = average
+            sample_data1[i][unknown_temp[b]] = average
 
-    return sample_data
+    return sample_data1
+
+def mixed(sample_data):
+    
+    
+    sample_data1 = copy.deepcopy(sample_data)
+    corr_table = correlation_table(df2)
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+          
+        for b in range(len(unknown_temp)):
+            sample_data_df = pd.DataFrame(sample_data1)
+            tempSum = 0
+            temp_array = np.array([])
+            for j in range(len(temp)):
+                        dropped = sample_data_df.iloc[:,[temp[j],unknown_temp[b]]].dropna()
+                        adjusted =  sample_data_df.iloc[i,temp[j]] - dropped[temp[j]].mean()
+                        #mean_diff = inter_data[temp[j]][unknown_temp[b]]
+                        corr = corr_table[temp[j]][unknown_temp[b]]
+                        weighted = adjusted*corr
+                        tempSum += dropped[unknown_temp[b]].mean()
+                        #tempSum += mean_diff
+                        temp_array = np.append(temp_array,[weighted,corr])
+                        
+            temp_array = temp_array.reshape((len(temp), 2))          
+            
+            average = sum(temp_array[:,0])/sum(temp_array[:,1])
+            average = average + (tempSum/3)
+            average = round(average)
+            if average > 100:
+                average = 100
+            elif average < 0:
+                average = 0
+            sample_data1[i][unknown_temp[b]] = average
+
+    return sample_data1
 
 # for each instructor's grades finds the frequency and returns 1D array
 # first element of 1D array correspond to first column in data which is instructor one and so on.
@@ -486,7 +699,7 @@ def validation(predictions, test_data):
 
 
 def validation_source_truth(predictions):
-    truth = pd.read_csv("Truth.csv")
+    truth = pd.read_csv("Implementation\Truth.csv")
     truth2 = truth.drop('Project ID', inplace=False, axis=1)
     truth2 = truth2.T.to_numpy().flatten()
 
@@ -494,13 +707,15 @@ def validation_source_truth(predictions):
     rmse = 0
     error = []
     # calculate the mean for all projects
+    #print(len(predictions))
     for i in range(len(predictions)):
         avg_p.append(np.mean(predictions[i]))
     # Calculates RMSE
     for i in range(len(avg_p)):
+        
         error.append(abs(avg_p[i] - truth2[i]))
         rmse += ((avg_p[i] - truth2[i]) ** 2)
-
+    #print(error)
     rmse = math.sqrt(rmse / len(avg_p))
     return error, rmse
 
@@ -657,8 +872,19 @@ def fifth_optimization(split_value):
     print("Error average:" + str(np.mean(err2)))
 
 
+
+
 # first_optimization(10)
 # second_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
-fifth_optimization(10)
+#fifth_optimization(10)
+#train2 = MLModel_VariationC(meanCorrelation(df2),df2.to_numpy())
+#train2 = collaborative(df2.to_numpy())
+#dff = pd.DataFrame(train2)
+#dff.to_csv('mixed.csv')
+#err2, rmse2 = validation_source_truth(train2)
+#print("RMSE value: " + str(rmse2))
+#print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+#print("Error average:" + str(np.mean(err2)))
+NN(df2.to_numpy(),meanCorrelation(df2))
