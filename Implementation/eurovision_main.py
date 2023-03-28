@@ -12,11 +12,11 @@ df.columns = ['year', 'final', 'edition', 'votetype', 'countryfrom', 'countryto'
 # TODO in future maybe we can derive more efficient algorithm this runs for O(n^2*m) m: the number of years
 #  n: number of countries participate selected year
 def adjustPoints(data, minYear, maxYear):
-    data2 = data.copy().query("`year`>= @minYear and `year` <= @maxYear")
+    # data2 = data.copy(deep=False).query("`year`>= @minYear and `year` <= @maxYear")
 
-    data2.insert(6, "adjustedPoints", 0)
+    data.insert(6, "adjustedPoints", 0)
     for k in range(minYear, maxYear + 1):
-        one_year = data2.query("`year` == @k ")
+        one_year = data.query("`year` == @k ")
         countries = one_year['countryfrom'].unique()
 
         length_countries = len(one_year['countryfrom'].unique())
@@ -36,9 +36,9 @@ def adjustPoints(data, minYear, maxYear):
                 point = point.iloc[0, 5]
 
                 diff = point - avg
-                data2.loc[index, 'adjustedPoints'] = diff
+                data.loc[index, 'adjustedPoints'] = diff
 
-    return data2
+    return data
 
 
 def basicClean(df, minYears=5, last_participation=8):
@@ -132,10 +132,11 @@ def split(data, minYear, maxYear, c_no):
 
 
 # max year included
-def prediction(data, test, minYear, maxYear, pMinYear, pMaxYear):
+def prediction(data, test, minYear, maxYear):
     data = adjustPoints(data, minYear, maxYear)
 
     average_table = pd.DataFrame()
+    mse = 0
 
     for i in range(minYear, maxYear + 1):
         one_year = data.query('`year` == @i')
@@ -166,15 +167,41 @@ def prediction(data, test, minYear, maxYear, pMinYear, pMaxYear):
                     average_table.at[row[4], row[5]] = [row[7], 1]
 
     for test_row in test.itertuples():
-        year = test_row[0]
+        year = test_row[1]
         countryto = test_row[5]
 
         x = data.query('`year` == @year and `countryto` == @countryto')
-        for data_row in x.itertuples():
-            p_value = data_row[6] + data_row[]
-    return 0
+        point = x['points'].mean()
+        bias = 0
+        if test_row[4] in average_table.index and test_row[5] in average_table:
+            if average_table.at[test_row[4], test_row[5]] != 0:
+                bias = average_table.at[test_row[4], test_row[5]][0] / average_table.at[test_row[4], test_row[5]][1]
+
+        p_value = point + bias
+
+        mse += (test_row[6] - p_value) ** 2
+
+    mse = mse / len(test)
+    rmse = np.sqrt(mse)
+    return mse, rmse
+
+
+def validation_for_randomized(data, minYear, maxYear, iteration_no):
+    mse_avg = 0
+    rmse_avg =  0
+
+    for i in range(iteration_no):
+        train_data, test_data = split(df2, 1986, 1986, 4)
+        r, mse = prediction(train_data, test_data, minYear, maxYear)
+        mse_avg += mse
+        rmse_avg += r
+
+    mse_avg = mse_avg / iteration_no
+    rmse_avg = rmse_avg / iteration_no
+    return mse_avg, rmse_avg
 
 
 df2 = basicClean(df)
-train_data, test_data = split(df2, 1986, 1986, 3)
-avg_table = prediction(train_data, test_data, 1975, 1985, 1986, 1986)
+
+mse, rmse = validation_for_randomized(df2, 1975, 1985, 20)
+print(mse, rmse)
