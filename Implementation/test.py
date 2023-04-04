@@ -16,6 +16,10 @@ from sklearn import svm
 from sklearn.svm import SVC
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.tree import DecisionTreeRegressor
+import numpy as np
+from sklearn.decomposition import NMF
+
 
 '''
 rows = []
@@ -316,34 +320,62 @@ def NN(sample_data,inter_data):
 
          
           data = np.append(data,temp2)
-    data = data.reshape(1000,9)
+    data = data.reshape(1000,6)
     
+    y_other = pd.read_csv('C:/Users/Ege/Desktop/FairGrading-1/Implementation/Truth.csv')
+    y_other.drop('Project ID',inplace=True, axis = 1)
     
-    
+    y_other = np.array(y_other)
+    y_other = y_other.reshape(-1)
     y = data[:,0]
     
-    data = data[:,1:]
+    #data = data[:,1:]
     #print(y)
-    X_train,X_test,y_train,y_test = train_test_split(data,y,test_size = 0.3,random_state= 0)
+    X_train,X_test,y_train,y_test = train_test_split(data,y_other,test_size = 0.2,random_state= 0)
     lr = LinearRegression()
     lr.fit(X_train,y_train)
 
     #test_pre = lr.predict(y_test)
     train_pre = lr.predict(X_test)
-    print(abs(y_test - train_pre).mean())
-    print("Mean squared error: %.2f" % mean_squared_error(y_test, train_pre))
+    print('Error rate for Linear Regression %.2f'%abs(y_test - train_pre).mean())
+    print("Mean squared error for Linear Regression: %.2f" % mean_squared_error(y_test, train_pre),'\n')
     
     model_SVR = svm.SVR()
     model_SVR.fit(X_train,y_train)
     Y_pred = model_SVR.predict(X_test)
-    print(abs(y_test - Y_pred).mean())
-    print("Mean squared error: %.2f" % mean_squared_error(y_test, Y_pred))
+    print('Error rate for SVR %.2f'%abs(y_test - Y_pred).mean())
+    print("Mean squared error for SVR: %.2f" % mean_squared_error(y_test, Y_pred),"\n")
     
     model_RFR = RandomForestRegressor(n_estimators=10)
     model_RFR.fit(X_train, y_train)
     Y_predd = model_RFR.predict(X_test)
-    print(abs(y_test - Y_predd).mean())
-    print("Mean squared error: %.2f" % mean_squared_error(y_test, Y_predd))
+    print('Error rate for Random Forest Regression %.2f'%abs(y_test - Y_predd).mean())
+    print("Mean squared error for Random Forest Regression: %.2f" % mean_squared_error(y_test, Y_predd),'\n')
+    
+    model_Decision_Tree =  DecisionTreeRegressor(max_depth=10)
+    model_Decision_Tree.fit(X_train, y_train)
+    Y_pred3 = model_Decision_Tree.predict(X_test)
+    print('Error rate for Decision Tree regression %.2f'%abs(y_test - Y_pred3).mean())
+    print("Mean squared error for Decision Tree regression: %.2f" % mean_squared_error(y_test, Y_pred3),'\n')
+
+    ######################
+
+    X = sample_data
+    mean = np.nanmean(X)
+    X[np.isnan(X)] = mean
+
+    rank = 7
+    model = NMF(n_components=rank, init='random', random_state=0, max_iter = 2500)
+
+    # fit model to the matrix
+    model.fit(X)
+
+    # predict missing values
+    W = model.transform(X)
+    H = model.components_
+    X_pred = np.dot(W, H)
+   
+    print("Predicted matrix:\n", X_pred)
           
 def collaborative(sample_data):
     sample_data1 = copy.deepcopy(sample_data)
@@ -879,7 +911,8 @@ def fifth_optimization(split_value):
 # third_optimization(10)
 # fourth_optimization(10)
 #fifth_optimization(10)
-#train2 = MLModel_VariationC(meanCorrelation(df2),df2.to_numpy())
+original_data = df2.to_numpy()
+train2 = MLModel_VariationC(meanCorrelation(df2),df2.to_numpy())
 #train2 = collaborative(df2.to_numpy())
 #dff = pd.DataFrame(train2)
 #dff.to_csv('mixed.csv')
@@ -887,4 +920,106 @@ def fifth_optimization(split_value):
 #print("RMSE value: " + str(rmse2))
 #print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
 #print("Error average:" + str(np.mean(err2)))
-NN(df2.to_numpy(),meanCorrelation(df2))
+#NN(df2.to_numpy(),meanCorrelation(df2))
+#X = train2
+   
+'''
+rank = 5
+model = NMF(n_components=rank, init='random', random_state=0, max_iter = 1300)
+
+# fit model to the matrix
+model.fit(X)
+
+# predict missing values
+W = model.transform(X)
+H = model.components_
+X_pred = np.dot(W, H)
+'''
+from sklearn.impute import KNNImputer
+M = df2.to_numpy()
+
+# Perform SVD on the matrix
+
+
+# Set the rank of the low-rank approximation
+imputer = KNNImputer(n_neighbors=2)
+A_imputed = imputer.fit_transform(M)
+
+# Compute the SVD decomposition of the imputed matrix
+U, s, Vt = np.linalg.svd(train2, full_matrices=False)
+
+# Set the rank of the low-rank approximation
+k = 2
+
+# Compute the low-rank approximation of the imputed matrix
+Ak = U[:, :k].dot(np.diag(s[:k])).dot(Vt[:k, :])
+
+# Predict missing values using the low-rank approximation
+A_predicted = np.where(np.isnan(M), Ak, train2)
+
+
+# Print the original matrix, the imputed matrix, and the predicted matrix with missing values
+
+#print("Imputed matrix:\n", A_imputed)
+#print("Predicted matrix with missing values:\n", A_predicted)
+rank = 5
+model = NMF(n_components=rank, init='random', random_state=0, max_iter = 1300)
+
+# fit model to the matrix
+model.fit(A_imputed)
+from sklearn.model_selection import KFold
+from keras.models import Sequential
+from keras.layers import Dense,SimpleRNN
+from keras.models import Sequential
+from keras.layers import Dense, Dropout
+from keras import regularizers
+
+# Load your preprocessed data matrix here
+data = A_predicted
+y_other = pd.read_csv('C:/Users/Ege/Desktop/FairGrading-1/Implementation/Truth.csv')
+y_other.drop('Project ID',inplace=True, axis = 1)
+    
+y_other = np.array(y_other)
+#y_other = y_other.reshape(-1)
+data = np.append(data,y_other , axis=1)
+# Define the number of folds for cross-validation
+kfold = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Define your neural network architecture
+model = Sequential()
+
+model.add(Dense(32, input_dim=25, activation='relu'))
+model.add(Dense( 64 , activation='relu'))
+model.add(Dense(1, activation='linear'))
+model.compile(loss='mean_squared_error', optimizer='adam')
+
+
+# Train and evaluate the neural network using cross-validation
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled_data = scaler.fit_transform(data)
+np.random.shuffle(data)
+X_train, X_test = data[:800,:-1], data[800:,:-1]
+y_train, y_test = data[:800,-1], data[800:,-1]
+model.fit(X_train, y_train, epochs=1000, verbose=0)
+score2 = model.evaluate(X_train,y_train)
+score = model.evaluate(X_test, y_test, verbose=0)
+print('Fold mean squared error:', score)
+print('Fold mean squared error:', score2)
+predicted = np.delete(data, -1, 1)
+predicted2 = model.predict(predicted)
+
+#mask = np.isnan(original_data)
+#original_data[mask] = predicted[mask]
+#print(predicted)
+
+# Calculate the average mean squared error across all folds
+
+
+'''
+'''
+err2, rmse2 = validation_source_truth(predicted)
+print("RMSE value: " + str(rmse2))
+print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+print("Error average:" + str(np.mean(err2)))
