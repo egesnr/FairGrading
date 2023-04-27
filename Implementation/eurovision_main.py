@@ -1,7 +1,10 @@
+import time
+
 import numpy as np
 import pandas as pd
 import matplotlib
 
+seconds = time.time()
 pd.options.display.max_rows = 999
 pd.options.display.max_columns = 200
 df = pd.read_csv("eurovision_song_contest_1975_2019.csv")
@@ -72,7 +75,7 @@ def basicClean(df, minYears=5, last_participation=8):
     df2['countryto'] = df2['countryto'].apply(lambda x: division[x] if x in division else x)
     df2 = df2.explode('countryfrom').explode('countryto')
 
-    # removing countries with less then 5 participations and not active in the last 5 years
+    # removing countries with less then 8 participations and not active in the last 5 years
     toKeep = df2.groupby('countryfrom').apply(lambda x: pd.Series({
         'years': x['year'].nunique(),
         'last_participation': df2['year'].max() - x['year'].max(),
@@ -136,6 +139,7 @@ def prediction(data, test, minYear, maxYear):
     data = adjustPoints(data, minYear, maxYear)
 
     average_table = pd.DataFrame()
+    std_table = pd.DataFrame()
     mse = 0
 
     for i in range(minYear, maxYear + 1):
@@ -166,6 +170,37 @@ def prediction(data, test, minYear, maxYear):
                     average_table.loc[row[4]] = arr
                     average_table.at[row[4], row[5]] = [row[7], 1]
 
+    for i in range(minYear, maxYear + 1):
+        one_year = data.query('`year` == @i')
+        adjusted_average = 0
+        for row in one_year.itertuples():
+            # if average_table.at[row[4], row[5]] != 0:
+
+            adjusted_average = average_table.at[row[4], row[5]][0] / average_table.at[row[4], row[5]][1]
+            std = (row[7] - adjusted_average) ** 2
+            if row[4] in std_table.index:
+                if row[5] in std_table.columns:
+                    std_table.at[row[4], row[5]] += std
+                else:
+                    std_table.insert(len(std_table.columns), row[5], 0)
+                    std_table.at[row[4], row[5]] = std
+            else:
+                if row[5] in std_table.columns:
+                    arr = [0] * len(std_table.columns)
+                    std_table.loc[row[4]] = arr
+                    std_table.at[row[4], row[5]] = std
+                else:
+                    std_table.insert(len(std_table.columns), row[5], 0)
+                    arr = [0] * len(std_table.columns)
+                    std_table.loc[row[4]] = arr
+                    std_table.at[row[4], row[5]] = std
+
+    for i in average_table.index:
+        for j in average_table.columns:
+            if average_table.at[i, j] != 0:
+                std = np.sqrt(std_table.at[i, j] / average_table.at[i, j][1])
+                std_table.at[i, j] = std
+
     for test_row in test.itertuples():
         year = test_row[1]
         countryto = test_row[5]
@@ -173,7 +208,7 @@ def prediction(data, test, minYear, maxYear):
         x = data.query('`year` == @year and `countryto` == @countryto')
         point = x['points'].mean()
         bias = 0
-        if test_row[4] in average_table.index and test_row[5] in average_table:
+        if test_row[4] in average_table.index and test_row[5] in average_table.columns:
             if average_table.at[test_row[4], test_row[5]] != 0:
                 bias = average_table.at[test_row[4], test_row[5]][0] / average_table.at[test_row[4], test_row[5]][1]
 
@@ -183,25 +218,56 @@ def prediction(data, test, minYear, maxYear):
 
     mse = mse / len(test)
     rmse = np.sqrt(mse)
-    return mse, rmse
+    nu_rmse = 0
+
+    countries = test['countryto'].unique()
+    for j in range(len(countries)):
+        l = len(test[test['countryto'] == countries[j]].iloc[:, 5:6])
+        l += len(data.query(' `year` == 1986 and `countryto` == @countries[@j] ').iloc[:, 5:6])
+
+        s = np.sum(test[test['countryto'] == countries[j]].iloc[:, 5:6].to_numpy())
+        s += np.sum(data.query(' `year` == 1986 and `countryto` == @countries[@j] ').iloc[:, 5:6].to_numpy())
+        average = s / l
+
+        countries2 = data.query(' `year` == 1986 and `countryto` == @countries[@j] ').loc[:, 'countryfrom'].to_numpy()
+        avg_hat = 0
+        for i in range(len(countries2)):
+            row = data.query(' `year` == 1986 and `countryto` == @countries[@j] and `countryfrom` == @countries2[@i] ')
+            p = row.iloc[0, 6]
+            bias = 0
+            if countries2[i] in average_table.index and countries[j] in average_table.columns:
+                if average_table.at[countries2[i], countries[j]] != 0:
+                    bias = average_table.at[countries2[i], countries[j]][0] / \
+                           average_table.at[countries2[i], countries[j]][1]
+            avg_hat += p + bias
+        avg_hat = avg_hat / len(countries2)
+
+        nu_rmse += (average - avg_hat) ** 2
+    nu_rmse = np.sqrt(nu_rmse / len(countries))
+    return mse, rmse, nu_rmse
 
 
 def validation_for_randomized(data, minYear, maxYear, iteration_no):
     mse_avg = 0
-    rmse_avg =  0
-
+    rmse_avg = 0
+    nu_rmse_avg = 0
     for i in range(iteration_no):
         train_data, test_data = split(df2, 1986, 1986, 4)
-        r, mse = prediction(train_data, test_data, minYear, maxYear)
+        mse, r, nu = prediction(train_data, test_data, minYear, maxYear)
         mse_avg += mse
         rmse_avg += r
+        nu_rmse_avg += nu
 
     mse_avg = mse_avg / iteration_no
     rmse_avg = rmse_avg / iteration_no
-    return mse_avg, rmse_avg
+    nu_rmse_avg /= iteration_no
+    return mse_avg, rmse_avg, nu_rmse_avg
 
 
 df2 = basicClean(df)
 
-mse, rmse = validation_for_randomized(df2, 1975, 1985, 20)
+mse, rmse, nu_rmse = validation_for_randomized(df2, 1975, 1985, 10)
 print(mse, rmse)
+print("RMSE for predicting performance of a country : ", nu_rmse)
+s = time.time()
+print(seconds - s)
