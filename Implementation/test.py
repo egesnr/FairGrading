@@ -1,13 +1,11 @@
 import statistics
 import copy
 import random
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import math
 
-import tensorflow as tf
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV, ElasticNetCV
@@ -16,6 +14,7 @@ from sklearn import svm
 from sklearn.svm import SVC
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.ensemble import RandomForestRegressor
+
 '''
 rows = []
 with open("Implementation\Grading_Assignment.csv","r") as file:
@@ -62,7 +61,7 @@ def plotting():
     plt.title('Grading Dataset')
     plt.ylabel('Frequency')
     plt.xlabel('Grades')
-    #   plt.hist(teacher1)
+    # plt.hist(teacher1)
     # plt.hist(teacher2,color = 'green',alpha = 0.5)
     # plt.show()
 
@@ -127,6 +126,9 @@ def meanCorrelation(train_data):
             teacher_x = commons.iloc[:, 0].mean()
             teacher_y = commons.iloc[:, 1].mean()
             var = teacher_x - teacher_y
+            if np.isnan(var):
+                var = 0
+            # TODO: burayı bir konuşalım
             if var > 0:
                 a.append(math.ceil(var))
             else:
@@ -256,6 +258,68 @@ def MLModel_VariationC(inter_data, sample_data):
                 else:
                     continue
             average = tempSum / len(temp)
+            if average > 100:  # 150
+                # x/ x-1 f(x) = aktivasyon
+                # average aldıktan sonra logaritmik bir fonsiyona koy onun sonucu yaz
+                tempSum = 0
+                for j in range(len(temp)):
+                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data1[i][temp[j]]
+                        if corr < 0:
+                            tempSum += corr
+                        elif corr > 0:
+                            tempSum += math.log(corr, 1.5)
+                    else:
+                        continue
+                average = tempSum / len(temp)
+
+            elif average < 0:
+                for j in range(len(temp)):
+                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data1[i][temp[j]]
+                        if corr < 0:
+                            tempSum -= math.log(abs(corr), 1.8)
+                        elif corr > 0:
+                            tempSum += corr
+                    else:
+                        continue
+                average = tempSum / len(temp)
+            sample_data1[i][unknown_temp[b]] = average
+
+    return sample_data1
+
+def MLModel_VariationD(inter_data, sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    sdt_of_pairs = standart_deviation_table(pd.DataFrame(df2))
+    cosines = cosine_similarity(pd.DataFrame(df2))
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+        
+        for b in range(len(unknown_temp)):
+            sdt_array = []
+            tempSum = 0
+            for j in range(len(temp)):
+                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                    tempVar = 0
+                    corr = inter_data[temp[j]][unknown_temp[b]]
+                    tempVar += sample_data1[i][temp[j]]
+                    tempVar += corr
+                    tempVar = tempVar*( 1/std_of_individuals[temp[j]][unknown_temp[b]])
+                    tempSum += tempVar
+                    sdt_array.append(1/std_of_individuals)
+                else:
+                    continue
+            divided = sum(sdt_array)
+            average = tempSum / sum(sdt_array)
             if average > 100: # 150
                 # x/ x-1 f(x) = aktivasyon
                 # average aldıktan sonra logaritmik bir fonsiyona koy onun sonucu yaz
@@ -375,11 +439,9 @@ def MLModel_collaborative(inter_data, sample_data):
             for j in range(len(temp)):
                 # check to if there is no relation between some pairs
                 if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                 if sdt[temp[j]][unknown_temp[b]]<10:
-                    if common_table[unknown_temp[b]][temp[j]]<10:
-                        common_diff = inter_data[temp[j]][unknown_temp[b]]
-                    else:
-                        common_diff = general_mean_table[unknown_temp[b]] - general_mean_table[temp[j]]
+              
+                    common_diff = inter_data[temp[j]][unknown_temp[b]]
+                   
                     adjusted = sample_data[i][temp[j]] + common_diff
 
                     # Pearson's Correlation
@@ -390,17 +452,14 @@ def MLModel_collaborative(inter_data, sample_data):
                     corrSum += abs(corr)
                     tempSum += weighted
                 
-                if corrSum == 0:
-                    if common_table[unknown_temp[b]][temp[j]]<10:
-                        common_diff = inter_data[temp[j]][unknown_temp[b]]
-                    else:
-                        common_diff = general_mean_table[unknown_temp[b]] - general_mean_table[temp[j]]
+              
+                    common_diff = general_mean_table[unknown_temp[b]] - general_mean_table[temp[j]]
                     adjusted = sample_data[i][temp[j]] + common_diff
 
                     # Pearson's Correlation
                     corr = corr_table[temp[j]][unknown_temp[b]]
 
-                    weighted = adjusted * corr
+                    weighted = adjusted * abs(corr)
 
                     corrSum += abs(corr)
                     tempSum += weighted
@@ -491,51 +550,48 @@ def NN(sample_data,inter_data):
     corr_table = correlation_table(df2)
     corr_table.to_csv("csv3.csv")
     for i in range(len(sample_data)):
-          temp = []
-          temp2 = []
-          for a in range(len(sample_data1[i])):
+        temp = []
+        temp2 = []
+        for a in range(len(sample_data1[i])):
             if pd.notna(sample_data1[i][a]):
-                
-                    temp.append(a)
-                    temp2.append(sample_data[i][a])
-          temp2.append(inter_data[temp[0]][temp[1]])
-          temp2.append(inter_data[temp[0]][temp[2]])
-          temp2.append(inter_data[temp[1]][temp[2]])
-          temp2.append(corr_table[temp[0]][temp[1]])
-          temp2.append(corr_table[temp[0]][temp[2]])
-          temp2.append(corr_table[temp[1]][temp[2]])
-          
+                temp.append(a)
+                temp2.append(sample_data[i][a])
+        temp2.append(inter_data[temp[0]][temp[1]])
+        temp2.append(inter_data[temp[0]][temp[2]])
+        temp2.append(inter_data[temp[1]][temp[2]])
+        temp2.append(corr_table[temp[0]][temp[1]])
+        temp2.append(corr_table[temp[0]][temp[2]])
+        temp2.append(corr_table[temp[1]][temp[2]])
 
-         
-          data = np.append(data,temp2)
-    data = data.reshape(1000,9)
-    
-    
-    
-    y = data[:,0]
-    
-    data = data[:,1:]
-    #print(y)
-    X_train,X_test,y_train,y_test = train_test_split(data,y,test_size = 0.3,random_state= 0)
+        data = np.append(data, temp2)
+    data = data.reshape(1000, 9)
+
+    y = data[:, 0]
+
+    data = data[:, 1:]
+    # print(y)
+    X_train, X_test, y_train, y_test = train_test_split(data, y, test_size=0.3, random_state=0)
     lr = LinearRegression()
-    lr.fit(X_train,y_train)
+    lr.fit(X_train, y_train)
 
-    #test_pre = lr.predict(y_test)
+    # test_pre = lr.predict(y_test)
     train_pre = lr.predict(X_test)
     print(abs(y_test - train_pre).mean())
     print("Mean squared error: %.2f" % mean_squared_error(y_test, train_pre))
-    
+
     model_SVR = svm.SVR()
-    model_SVR.fit(X_train,y_train)
+    model_SVR.fit(X_train, y_train)
     Y_pred = model_SVR.predict(X_test)
     print(abs(y_test - Y_pred).mean())
     print("Mean squared error: %.2f" % mean_squared_error(y_test, Y_pred))
-    
+
     model_RFR = RandomForestRegressor(n_estimators=10)
     model_RFR.fit(X_train, y_train)
     Y_predd = model_RFR.predict(X_test)
     print(abs(y_test - Y_predd).mean())
     print("Mean squared error: %.2f" % mean_squared_error(y_test, Y_predd))
+
+
 # for each instructor's grades finds the frequency and returns 1D array
 # first element of 1D array correspond to first column in data which is instructor one and so on.
 def find_frequency(data):
@@ -638,7 +694,7 @@ def split_data_randomized(data):
                 locations[i].append(j)
         locations.append([])
     locations = locations[:-1]
-
+    # burda hocalarıda soft code şekilde alman lazım her hoca sayısı için uymalı
     for i in range(len(locations)):
         freq_teacher_1 = freq.iloc[locations[i][0]][0]
         freq_teacher_2 = freq.iloc[locations[i][1]][0]
@@ -660,7 +716,7 @@ def split_data_randomized(data):
 
 
 def split_data(data, x):
-    global var
+    var = 0
     train_data = copy.deepcopy(data.to_numpy())
     freq = find_frequency(pd.DataFrame(train_data))
     freq = pd.DataFrame(freq)
@@ -757,6 +813,28 @@ def validation(predictions, test_data):
     rmse = math.sqrt(rmse / len(test_data))
 
     return error, rmse
+
+
+def take_the_bias(data):
+    array = []
+    data = pd.DataFrame(data)
+    # column index
+
+    for i in data.columns:
+        ex = data[data.loc[:, i].isnull() == False]
+        # row index
+        s = 0
+        d = 0
+        for j in ex.index:
+            # others column index
+            for k in ex.columns:
+                if i == k or np.isnan(ex.at[j, k]):
+                    continue
+                s += ex.at[j, i] - ex.at[j, k]
+                d += 1
+        array.append(s/d)
+
+    return array
 
 
 def validation_source_truth(predictions):
@@ -857,16 +935,25 @@ def first_optimization(split_value):
     train, test = split_data(df2, split_value)
     train = MLModel_base(train)
     err, rmse = validation(train, test)
-
+    print("validation score")
     print("RMSE value: " + str(rmse))
     print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
     print("Error average: " + str(np.mean(err)))
     print()
-    train2 = MLModel_base(df2.to_numpy())
-    err2, rmse2 = validation_source_truth(train2)
-    print("RMSE value: " + str(rmse2))
-    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
-    print("Error average:" + str(np.mean(err2)))
+    # print("randomized validation score ")
+    # train2, test2 = split_data_randomized(df2)
+    # train2 = MLModel_base(train2)
+    # err2, rmse2 = validation(train2, test2)
+    # print()
+    # print("RMSE value: " + str(rmse2))
+    # print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+    # print("Error average:" + str(np.mean(err2)))
+    # print("Source of truth validation score")
+    train3 = MLModel_base(df2.to_numpy())
+    err3, rmse3 = validation_source_truth(train3)
+    print("RMSE value: " + str(rmse3))
+    print("Max & Min : " + str(max(err3)) + " & " + str(min(err3)))
+    print("Error average:" + str(np.mean(err3)))
 
 
 def second_optimization(split_value):
@@ -939,18 +1026,22 @@ def sixth_optimization(split_value):
     print("Error average: " + str(np.mean(err)))
     print()
 
-    train2 = MLModel_collaborative(meanCorrelation(df2.to_numpy()), df2.to_numpy())
-    err2, rmse2 = validation_source_truth(train2)
-    print("RMSE value: " + str(rmse2))
-    print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
-    print("Error average:" + str(np.mean(err2)))
+    # print("randomized validation score ")
+    # train2, test2 = split_data_randomized(df2)
+    # train2 = MLModel_collaborative(meanCorrelation(train2), train2)
+    # err2, rmse2 = validation(train2, test2)
+    # print()
+    # print("RMSE value: " + str(rmse2))
+    # print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+    # print("Error average:" + str(np.mean(err2)))
+    # print("Source of truth validation score")
 
-#first_optimization(10)
+first_optimization(10)
 # second_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
 # fifth_optimization(10)
-#sixth_optimization(10)
+sixth_optimization(10)
 
 result = MLModel_cumulative(df2.to_numpy(), df2.to_numpy())
 truth = pd.read_csv("Implementation/Truth.csv")
