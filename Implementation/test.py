@@ -27,7 +27,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("Grading_Assignment.csv")
+df = pd.read_csv("Implementation/Grading_Assignment.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -290,11 +290,138 @@ def MLModel_VariationC(inter_data, sample_data):
 
     return sample_data1
 
+def MLModel_VariationD(inter_data, sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    sdt_of_pairs = standart_deviation_table(pd.DataFrame(df2))
+    cosines = cosine_similarity(pd.DataFrame(df2))
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+        
+        for b in range(len(unknown_temp)):
+            sdt_array = []
+            tempSum = 0
+            for j in range(len(temp)):
+                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                    tempVar = 0
+                    corr = inter_data[temp[j]][unknown_temp[b]]
+                    tempVar += sample_data1[i][temp[j]]
+                    tempVar += corr
+                    tempVar = tempVar*( 1/std_of_individuals[temp[j]][unknown_temp[b]])
+                    tempSum += tempVar
+                    sdt_array.append(1/std_of_individuals)
+                else:
+                    continue
+            divided = sum(sdt_array)
+            average = tempSum / sum(sdt_array)
+            if average > 100: # 150
+                # x/ x-1 f(x) = aktivasyon
+                # average aldıktan sonra logaritmik bir fonsiyona koy onun sonucu yaz
+                tempSum = 0
+                for j in range(len(temp)):
+                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data1[i][temp[j]]
+                        if corr < 0:
+                            tempSum += corr
+                        elif corr > 0:
+                            tempSum += math.log(corr, 1.5)
+                    else:
+                        continue
+                average = tempSum / len(temp)
+
+            elif average < 0:
+                for j in range(len(temp)):
+                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data1[i][temp[j]]
+                        if corr < 0:
+                            tempSum -= math.log(abs(corr), 1.8)
+                        elif corr > 0:
+                            tempSum += corr
+                    else:
+                        continue
+                average = tempSum / len(temp)
+            sample_data1[i][unknown_temp[b]] = average
+
+    return sample_data1
+
+def MLModel_VariationD(inter_data, sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    sdt_of_pairs = standart_deviation_table(pd.DataFrame(df2))
+    cosines = cosine_similarity(pd.DataFrame(df2))
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+        
+        for b in range(len(unknown_temp)):
+            sdt_array = []
+            tempSum = 0
+            for j in range(len(temp)):
+                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                    tempVar = 0
+                    corr = inter_data[temp[j]][unknown_temp[b]]
+                    tempVar += sample_data1[i][temp[j]]
+                    tempVar += corr
+                    tempVar = tempVar*( 1/std_of_individuals[temp[j]][unknown_temp[b]])
+                    tempSum += tempVar
+                    sdt_array.append(1/std_of_individuals)
+                else:
+                    continue
+            divided = sum(sdt_array)
+            average = tempSum / sum(sdt_array)
+            if average > 100: # 150
+                # x/ x-1 f(x) = aktivasyon
+                # average aldıktan sonra logaritmik bir fonsiyona koy onun sonucu yaz
+                tempSum = 0
+                for j in range(len(temp)):
+                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data1[i][temp[j]]
+                        if corr < 0:
+                            tempSum += corr
+                        elif corr > 0:
+                            tempSum += math.log(corr, 1.5)
+                    else:
+                        continue
+                average = tempSum / len(temp)
+
+            elif average < 0:
+                for j in range(len(temp)):
+                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
+                        corr = inter_data[temp[j]][unknown_temp[b]]
+                        tempSum += sample_data1[i][temp[j]]
+                        if corr < 0:
+                            tempSum -= math.log(abs(corr), 1.8)
+                        elif corr > 0:
+                            tempSum += corr
+                    else:
+                        continue
+                average = tempSum / len(temp)
+            sample_data1[i][unknown_temp[b]] = average
+
+    return sample_data1
+
 
 def MLModel_collaborative(inter_data, sample_data):
     sample_data1 = copy.deepcopy(sample_data)
     # Burda niye df2 kullanıyoruz çünkü veri ayırma yapınca yeteri kadar ortak veri bulamıyoruz ve hata veriyor
     corr_table = correlation_table(df2)
+    common_table= common_grade_table(pd.DataFrame(df2))
+    general_mean_table = take_the_bias(df2.to_numpy())
+    sdt = standart_deviation_table(pd.DataFrame(df2))
     for i in range(len(sample_data1)):
         temp = []
         unknown_temp = []
@@ -306,14 +433,27 @@ def MLModel_collaborative(inter_data, sample_data):
 
         for b in range(len(unknown_temp)):
             tempSum = 0
+            
             sample_data1_df = pd.DataFrame(sample_data1)
             corrSum = 0
             for j in range(len(temp)):
                 # check to if there is no relation between some pairs
                 if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-
+              
                     common_diff = inter_data[temp[j]][unknown_temp[b]]
+                   
+                    adjusted = sample_data[i][temp[j]] + common_diff
 
+                    # Pearson's Correlation
+                    corr = corr_table[temp[j]][unknown_temp[b]]
+
+                    weighted = adjusted * corr
+
+                    corrSum += abs(corr)
+                    tempSum += weighted
+                
+              
+                    common_diff = general_mean_table[unknown_temp[b]] - general_mean_table[temp[j]]
                     adjusted = sample_data[i][temp[j]] + common_diff
 
                     # Pearson's Correlation
@@ -336,8 +476,75 @@ def MLModel_collaborative(inter_data, sample_data):
 
     return sample_data1
 
+def MLModel_cumulative(individual_data,sample_data):
+    sample_data1 = copy.deepcopy(sample_data)
+    # Burda niye df2 kullanıyoruz çünkü veri ayırma yapınca yeteri kadar ortak veri bulamıyoruz ve hata veriyor
+    corr_table = meanCorrelation(df2.to_numpy())
+    common_table= common_grade_table(pd.DataFrame(df2))
+    general_mean_table = take_the_bias(df2.to_numpy())
+    sdt = std_of_individuals(pd.DataFrame(df2))
+    sdt2 = standart_deviation_table(pd.DataFrame(df2))
+    y_hat = []
 
-def NN(sample_data, inter_data):
+    for i in range(len(sample_data1)):
+        temp = []
+        unknown_temp = []
+        scores = []
+        for a in range(len(sample_data1[i])):
+            if pd.notna(sample_data1[i][a]):
+                temp.append(a)
+            else:
+                unknown_temp.append(a)
+
+        tempSum = 0
+        count = 0
+        for j in range(len(temp)):
+                
+            
+            common_diff = general_mean_table[temp[j]]
+            adjusted = sample_data1[i][temp[j]] - common_diff
+            row_except_element = temp[:j] + temp[j + 1:]
+            raw_score = sample_data1[i][temp[j]] - (sum(sample_data1[i][row_except_element])/2)
+            
+
+            score_z = (raw_score - general_mean_table[temp[j]])/sdt[temp[j]]
+            #tempSum += adjusted*(1/sdt[temp[j]])
+            tempSum += sample_data1[i][temp[j]] - common_diff
+            count += 1/sdt[temp[j]]
+            '''
+            score_x = 1/(sdt[temp[j]]+1)
+            score_p = 1
+            coefficient = 1/(score_z+0.1)
+            coefficient2 = common_diff*score_z        
+                    
+            weighted =  sample_data1[i][temp[j]] - coefficient2
+            scores.append(coefficient)
+                   
+            tempSum += weighted
+            '''
+                 
+                
+        average = tempSum / 3
+
+        if average > 100:
+                average = 100
+        elif average < 0:
+                average = 0
+        y_hat.append(average)    
+      
+    return y_hat
+
+
+
+
+
+
+
+
+
+    
+
+def NN(sample_data,inter_data):
     data = np.array([])
     sample_data1 = copy.deepcopy(sample_data)
     corr_table = correlation_table(df2)
@@ -398,7 +605,7 @@ def find_frequency(data):
 
 # Find how many common grade for each pair of teacher
 def common_grade_table(data):
-    freq = pd.DataFrame()
+    
     freq2 = []
     for i in range(25):
         for j in range(25):
@@ -409,7 +616,70 @@ def common_grade_table(data):
     c = b.reshape(25, 25)
     d = pd.DataFrame(c)
     return d
+from numpy.linalg import norm
+def cosine_similarity(data):
+    
+    cosine_table = []
+    for i in range(25):
+        for j in range(25):
+            combinations = data.iloc[:, [i, j]]
+            combinations_dropped = combinations.dropna()
+            first_column = combinations_dropped.iloc[:, 0]
+            second_column = combinations_dropped.iloc[:, 1]
+            
+            cosine = np.dot(first_column,second_column)/(norm(first_column)*norm(second_column))
+            
+            # population standard deviation
+            cosine_table.append(cosine)
 
+    cosine_table = np.array(cosine_table)
+    cosine_table = cosine_table.reshape(25, 25)
+    return cosine_table
+def take_the_bias(data):
+    array = []
+    data = pd.DataFrame(data)
+    # column index
+
+    for i in data.columns:
+        ex = data[data.loc[:, i].isnull() == False]
+        # row index
+        s = 0
+        d = 0
+        for j in ex.index:
+            # others column index
+            for k in ex.columns:
+                if i == k or np.isnan(ex.at[j, k]):
+                    continue
+                s += ex.at[j, i] - ex.at[j, k]
+                d += 1
+        array.append(s/d)
+
+    return array
+def std_of_individuals(data):
+    array = []
+    
+    data = pd.DataFrame(data)
+    # column index
+
+    for i in data.columns:
+        array_2 = []
+        ex = data[data.loc[:, i].isnull() == False]
+        # row index
+        s = 0
+        d = 0
+        for j in ex.index:
+            x = 0
+            y = 0
+            # others column index
+            for k in ex.columns:
+                if i == k or np.isnan(ex.at[j, k]):
+                    continue
+                x += ex.at[j, i] - ex.at[j, k]
+                y += 1
+                array_2.append(x/y)
+        std = statistics.pstdev(array_2)
+        array.append(std)
+    return array
 
 def split_data_randomized(data):
     train_data = copy.deepcopy(data.to_numpy())
@@ -568,7 +838,7 @@ def take_the_bias(data):
 
 
 def validation_source_truth(predictions):
-    truth = pd.read_csv("Truth.csv")
+    truth = pd.read_csv("Implementation/Truth.csv")
     truth2 = truth.drop('Project ID', inplace=False, axis=1)
     truth2 = truth2.T.to_numpy().flatten()
 
@@ -766,15 +1036,40 @@ def sixth_optimization(split_value):
     # print("Error average:" + str(np.mean(err2)))
     # print("Source of truth validation score")
 
-    train3 = MLModel_collaborative(meanCorrelation(df2.to_numpy()), df2.to_numpy())
-    err3, rmse3 = validation_source_truth(train3)
-    print("RMSE value: " + str(rmse3))
-    print("Max & Min : " + str(max(err3)) + " & " + str(min(err3)))
-    print("Error average:" + str(np.mean(err3)))
-
-
 first_optimization(10)
-print()
+# second_optimization(10)
+# third_optimization(10)
+# fourth_optimization(10)
+# fifth_optimization(10)
 sixth_optimization(10)
 
-# take_the_bias(df2)
+result = MLModel_cumulative(df2.to_numpy(), df2.to_numpy())
+truth = pd.read_csv("Implementation/Truth.csv")
+truth2 = truth.drop('Project ID', inplace=False, axis=1)
+truth2 = truth2.T.to_numpy().flatten()
+
+
+rmse = 0
+error = []
+
+# Calculates RMSE
+for i in range(len(result)):
+        error.append(abs(result[i] - truth2[i]))
+        rmse += ((result[i] - truth2[i]) ** 2)
+
+rmse = math.sqrt(rmse / len(result))
+err = sum(error)/len(error)
+print('RMSE', rmse,'Error',err)
+print("Max & Min : " + str(max(error)) + " & " + str(min(error)))
+
+train2 = MLModel_VariationC(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+err2, rmse2 = validation_source_truth(train2)
+print("RMSE value: " + str(rmse2))
+print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+print("Error average:" + str(np.mean(err2)))
+
+train2 = MLModel_VariationD(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+err2, rmse2 = validation_source_truth(train2)
+print("RMSE value: " + str(rmse2))
+print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
+print("Error average:" + str(np.mean(err2)))
