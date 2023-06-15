@@ -562,7 +562,7 @@ def take_the_bias(data):
                     continue
                 s += ex.at[j, i] - ex.at[j, k]
                 d += 1
-        array.append(s/d)
+        array.append(s / d)
 
     return array
 
@@ -661,7 +661,7 @@ def correlation_table(data):
 
 
 # control function
-def first_optimization(split_value):
+def first_optimization(split_value):  # split value means that we are getting frequency of common projects
     train, test = split_data(df2, split_value)
     train = MLModel_base(train)
     err, rmse = validation(train, test)
