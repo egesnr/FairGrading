@@ -27,7 +27,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("Implementation/Grading_Assignment.csv")
+df = pd.read_csv("More Noised Data for Lecturers\FinalScores4.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -425,8 +425,8 @@ def MLModel_cumulative(individual_data,sample_data):
 
             score_z = (raw_score - general_mean_table[temp[j]])/sdt[temp[j]]
             #tempSum += adjusted*(1/sdt[temp[j]])
-            tempSum += (sample_data1[i][temp[j]] - common_diff)*(1/(sdt[temp[j]]+0.01))
-            count += 1/(sdt[temp[j]]+0.01)
+            tempSum += (sample_data1[i][temp[j]] - common_diff)*(1/(sdt[temp[j]]))
+            count += 1/(sdt[temp[j]])
             '''
             score_x = 1/(sdt[temp[j]]+1)
             score_p = 1
@@ -754,7 +754,7 @@ def take_the_bias(data):
 
 
 def validation_source_truth(predictions):
-    truth = pd.read_csv("Implementation/Truth.csv")
+    truth = pd.read_csv("More Noised Data for Lecturers\Source_of_Truth.csv")
     truth2 = truth.drop('Project ID', inplace=False, axis=1)
     truth2 = truth2.T.to_numpy().flatten()
 
@@ -952,7 +952,7 @@ def sixth_optimization(split_value):
     # print("Error average:" + str(np.mean(err2)))
     # print("Source of truth validation score")
 
-first_optimization(10)
+#first_optimization(10)
 # second_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
@@ -969,6 +969,7 @@ rmse = 0
 error = []
 
 # Calculates RMSE
+'''
 for i in range(len(result)):
         error.append(abs(result[i] - truth2[i]))
         rmse += ((result[i] - truth2[i]) ** 2)
@@ -995,7 +996,7 @@ err4, rmse4 = validation_source_truth(train4)
 print("RMSE value: " + str(rmse4))
 print("Max & Min : " + str(max(err4)) + " & " + str(min(err4)))
 print("Error average:" + str(np.mean(err4)))
-
+'''
 train4 = MLModel_cumulative(meanCorrelation(df2.to_numpy()), df2.to_numpy())
 err4, rmse4 = validation_source_truth(train4)
 print("Cumulative RMSE value: " + str(rmse4))
