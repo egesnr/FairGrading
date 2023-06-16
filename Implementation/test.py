@@ -313,103 +313,19 @@ def MLModel_VariationD(inter_data, sample_data):
                     corr = inter_data[temp[j]][unknown_temp[b]]
                     tempVar += sample_data1[i][temp[j]]
                     tempVar += corr
-                    tempVar = tempVar*( 1/std_of_individuals[temp[j]][unknown_temp[b]])
+                    tempVar = tempVar*( 1/sdt_of_pairs[temp[j]][unknown_temp[b]])
                     tempSum += tempVar
-                    sdt_array.append(1/std_of_individuals)
+                    sdt_array.append(1/sdt_of_pairs[temp[j]][unknown_temp[b]])
                 else:
                     continue
             divided = sum(sdt_array)
-            average = tempSum / sum(sdt_array)
-            if average > 100: # 150
-                # x/ x-1 f(x) = aktivasyon
-                # average aldıktan sonra logaritmik bir fonsiyona koy onun sonucu yaz
-                tempSum = 0
-                for j in range(len(temp)):
-                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                        corr = inter_data[temp[j]][unknown_temp[b]]
-                        tempSum += sample_data1[i][temp[j]]
-                        if corr < 0:
-                            tempSum += corr
-                        elif corr > 0:
-                            tempSum += math.log(corr, 1.5)
-                    else:
-                        continue
-                average = tempSum / len(temp)
+            average = tempSum / divided
+            if average > 100:
+                average = 100
 
             elif average < 0:
-                for j in range(len(temp)):
-                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                        corr = inter_data[temp[j]][unknown_temp[b]]
-                        tempSum += sample_data1[i][temp[j]]
-                        if corr < 0:
-                            tempSum -= math.log(abs(corr), 1.8)
-                        elif corr > 0:
-                            tempSum += corr
-                    else:
-                        continue
-                average = tempSum / len(temp)
-            sample_data1[i][unknown_temp[b]] = average
-
-    return sample_data1
-
-def MLModel_VariationD(inter_data, sample_data):
-    sample_data1 = copy.deepcopy(sample_data)
-    sdt_of_pairs = standart_deviation_table(pd.DataFrame(df2))
-    cosines = cosine_similarity(pd.DataFrame(df2))
-    for i in range(len(sample_data1)):
-        temp = []
-        unknown_temp = []
-        
-        for a in range(len(sample_data1[i])):
-            if pd.notna(sample_data1[i][a]):
-                temp.append(a)
-            else:
-                unknown_temp.append(a)
-        
-        for b in range(len(unknown_temp)):
-            sdt_array = []
-            tempSum = 0
-            for j in range(len(temp)):
-                if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                    tempVar = 0
-                    corr = inter_data[temp[j]][unknown_temp[b]]
-                    tempVar += sample_data1[i][temp[j]]
-                    tempVar += corr
-                    tempVar = tempVar*( 1/std_of_individuals[temp[j]][unknown_temp[b]])
-                    tempSum += tempVar
-                    sdt_array.append(1/std_of_individuals)
-                else:
-                    continue
-            divided = sum(sdt_array)
-            average = tempSum / sum(sdt_array)
-            if average > 100: # 150
-                # x/ x-1 f(x) = aktivasyon
-                # average aldıktan sonra logaritmik bir fonsiyona koy onun sonucu yaz
-                tempSum = 0
-                for j in range(len(temp)):
-                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                        corr = inter_data[temp[j]][unknown_temp[b]]
-                        tempSum += sample_data1[i][temp[j]]
-                        if corr < 0:
-                            tempSum += corr
-                        elif corr > 0:
-                            tempSum += math.log(corr, 1.5)
-                    else:
-                        continue
-                average = tempSum / len(temp)
-
-            elif average < 0:
-                for j in range(len(temp)):
-                    if pd.notna(inter_data[temp[j]][unknown_temp[b]]):
-                        corr = inter_data[temp[j]][unknown_temp[b]]
-                        tempSum += sample_data1[i][temp[j]]
-                        if corr < 0:
-                            tempSum -= math.log(abs(corr), 1.8)
-                        elif corr > 0:
-                            tempSum += corr
-                    else:
-                        continue
-                average = tempSum / len(temp)
+                average = 0
+               
             sample_data1[i][unknown_temp[b]] = average
 
     return sample_data1
@@ -509,8 +425,8 @@ def MLModel_cumulative(individual_data,sample_data):
 
             score_z = (raw_score - general_mean_table[temp[j]])/sdt[temp[j]]
             #tempSum += adjusted*(1/sdt[temp[j]])
-            tempSum += sample_data1[i][temp[j]] - common_diff
-            count += 1/sdt[temp[j]]
+            tempSum += (sample_data1[i][temp[j]] - common_diff)*(1/(sdt[temp[j]]+0.01))
+            count += 1/(sdt[temp[j]]+0.01)
             '''
             score_x = 1/(sdt[temp[j]]+1)
             score_p = 1
@@ -524,7 +440,7 @@ def MLModel_cumulative(individual_data,sample_data):
             '''
                  
                 
-        average = tempSum / 3
+        average = tempSum / count
 
         if average > 100:
                 average = 100
@@ -1041,7 +957,7 @@ first_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
 # fifth_optimization(10)
-sixth_optimization(10)
+#sixth_optimization(10)
 
 result = MLModel_cumulative(df2.to_numpy(), df2.to_numpy())
 truth = pd.read_csv("Implementation/Truth.csv")
@@ -1062,14 +978,27 @@ err = sum(error)/len(error)
 print('RMSE', rmse,'Error',err)
 print("Max & Min : " + str(max(error)) + " & " + str(min(error)))
 
-train2 = MLModel_VariationC(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+train2 = MLModel_VariationA(meanCorrelation(df2.to_numpy()), df2.to_numpy())
 err2, rmse2 = validation_source_truth(train2)
 print("RMSE value: " + str(rmse2))
 print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
 print("Error average:" + str(np.mean(err2)))
 
-train2 = MLModel_VariationD(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+train2 = MLModel_collaborative(meanCorrelation(df2.to_numpy()), df2.to_numpy())
 err2, rmse2 = validation_source_truth(train2)
 print("RMSE value: " + str(rmse2))
 print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
 print("Error average:" + str(np.mean(err2)))
+
+train4 = MLModel_VariationD(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+err4, rmse4 = validation_source_truth(train4)
+print("RMSE value: " + str(rmse4))
+print("Max & Min : " + str(max(err4)) + " & " + str(min(err4)))
+print("Error average:" + str(np.mean(err4)))
+
+train4 = MLModel_cumulative(meanCorrelation(df2.to_numpy()), df2.to_numpy())
+err4, rmse4 = validation_source_truth(train4)
+print("Cumulative RMSE value: " + str(rmse4))
+print("Max & Min : " + str(max(err4)) + " & " + str(min(err4)))
+print("Error average:" + str(np.mean(err4)))
+
