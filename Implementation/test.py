@@ -414,10 +414,10 @@ def MLModel_VariationE(inter_data, sample_data):
     return sample_data1
 
 
-def MLModel_collaborative(inter_data, sample_data):
+def MLModel_collaborative(inter_data, sample_data, clampMax, clampMin, graderNo):
     sample_data1 = copy.deepcopy(sample_data)
     # Burda niye df2 kullanıyoruz çünkü veri ayırma yapınca yeteri kadar ortak veri bulamıyoruz ve hata veriyor
-    corr_table = correlation_table(pd.DataFrame(sample_data1))
+    corr_table = correlation_table(pd.DataFrame(sample_data1), graderNo)
     common_table = common_grade_table(pd.DataFrame(df2))
     general_mean_table = take_the_bias(df2.to_numpy())
     sdt = standart_deviation_table(pd.DataFrame(sample_data))
@@ -465,17 +465,17 @@ def MLModel_collaborative(inter_data, sample_data):
                 else:
                     continue
             average = tempSum / corrSum
-
-            if average > 100:
-                average = 100
-            elif average < 0:
-                average = 0
+            #TODO: it will be updated
+            if average > clampMax:
+                average = clampMax
+            elif average < clampMin:
+                average = clampMin
             sample_data1[i][unknown_temp[b]] = average
 
     return sample_data1
 
 
-def MLModel_cumulative(individual_data, sample_data):
+def MLModel_cumulative(individual_data, sample_data, clampMax, clampMin):
     sample_data1 = copy.deepcopy(sample_data)
     # Burda niye df2 kullanıyoruz çünkü veri ayırma yapınca yeteri kadar ortak veri bulamıyoruz ve hata veriyor
     corr_table = meanCorrelation(df2.to_numpy())
@@ -522,10 +522,10 @@ def MLModel_cumulative(individual_data, sample_data):
                 
         average = tempSum / count
 
-        if average > 100:
-            average = 100
-        elif average < 0:
-            average = 0
+        if average > clampMax:
+            average = clampMax
+        elif average < clampMin:
+            average = clampMin
         y_hat.append(average)
 
     return y_hat
@@ -710,7 +710,7 @@ def split_data_randomized(data):
     return train_data, test_dict
 
 
-def split_data(data, x):
+def split_data(data, frequency_limit):
     var = 0
     train_data = copy.deepcopy(data.to_numpy())
     freq = find_frequency(pd.DataFrame(train_data))
@@ -745,43 +745,68 @@ def split_data(data, x):
         # get last item which has max value pair
         if list(commons_per_project2)[-1] == 0:
 
-            if commons[teacher_1][teacher_2] >= x:
+            if commons[teacher_1][teacher_2] >= frequency_limit:
 
-                if freq_teacher_1 >= freq_teacher_2:
+                if commons[teacher_1][teacher_3] >= commons[teacher_2][teacher_3]:
                     var = teacher_1
-                    freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
+                    # freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
+                    commons[teacher_1][teacher_2] -= 1
+                    commons[teacher_1][teacher_3] -= 1
+
+                    commons[teacher_2][teacher_1] -= 1
+                    commons[teacher_3][teacher_1] -= 1
                 else:
                     var = teacher_2
-                    freq.iloc[locations[i][1]][0] = freq_teacher_2 - 1
-                commons[teacher_1][teacher_2] -= 1
-                commons[teacher_2][teacher_1] -= 1
+                    # freq.iloc[locations[i][1]][0] = freq_teacher_2 - 1
+                    commons[teacher_2][teacher_1] -= 1
+                    commons[teacher_2][teacher_3] -= 1
+
+                    commons[teacher_1][teacher_2] -= 1
+                    commons[teacher_3][teacher_2] -= 1
 
         elif list(commons_per_project2)[-1] == 1:
 
-            if commons[teacher_1][teacher_3] >= x:
+            if commons[teacher_1][teacher_3] >= frequency_limit:
 
-                if freq_teacher_1 >= freq_teacher_3:
+                if commons[teacher_1][teacher_2] >= commons[teacher_3][teacher_2]:
                     var = teacher_1
-                    freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
+                    # freq.iloc[locations[i][0]][0] = freq_teacher_1 - 1
+                    commons[teacher_1][teacher_2] -= 1
+                    commons[teacher_1][teacher_3] -= 1
+
+                    commons[teacher_2][teacher_1] -= 1
+                    commons[teacher_3][teacher_1] -= 1
                 else:
                     var = teacher_3
-                    freq.iloc[locations[i][2]][0] = freq_teacher_3 - 1
-                commons[teacher_1][teacher_3] -= 1
-                commons[teacher_3][teacher_1] -= 1
+                    # freq.iloc[locations[i][2]][0] = freq_teacher_3 - 1
+                    commons[teacher_3][teacher_1] -= 1
+                    commons[teacher_3][teacher_2] -= 1
+
+                    commons[teacher_1][teacher_3] -= 1
+                    commons[teacher_2][teacher_3] -= 1
 
 
         elif list(commons_per_project2)[-1] == 2:
 
-            if commons[teacher_2][teacher_3] >= x:
+            if commons[teacher_2][teacher_3] >= frequency_limit:
 
-                if freq_teacher_2 >= freq_teacher_3:
-                    freq.iloc[locations[i][1]][0] = freq_teacher_2 - 1
+                if commons[teacher_2][teacher_1] >= commons[teacher_3][teacher_1]:
+                    # freq.iloc[locations[i][1]][0] = freq_teacher_2 - 1
                     var = teacher_2
+                    commons[teacher_2][teacher_3] -= 1
+                    commons[teacher_2][teacher_1] -= 1
+
+                    commons[teacher_3][teacher_2] -= 1
+                    commons[teacher_1][teacher_2] -= 1
                 else:
                     var = teacher_3
-                    freq.iloc[locations[i][2]][0] = freq_teacher_3 - 1
-                commons[teacher_2][teacher_3] -= 1
-                commons[teacher_3][teacher_2] -= 1
+                    # freq.iloc[locations[i][2]][0] = freq_teacher_3 - 1
+                    commons[teacher_3][teacher_1] -= 1
+                    commons[teacher_3][teacher_2] -= 1
+
+                    commons[teacher_1][teacher_3] -= 1
+                    commons[teacher_2][teacher_3] -= 1
+
 
         test_dict[i] = {var: train_data[i, var]}
 
@@ -794,21 +819,37 @@ def split_data(data, x):
 
 
 # calculates error array, root mean square error
-def validation(predictions, test_data):
+def validation(predictions, test_data, data):
     error = []
     rmse = 0.0
+    rmse_average = 0
+
     for i in range(len(test_data)):
+
+
         for key, value in test_data[i].items():
             if np.isnan(value) == False:
                 rmse += ((predictions[i][key] - value) ** 2)
 
                 error.append(abs(predictions[i][key] - value))
 
+
+        average = data.iloc[i][0: 4].sum() / 3
+        yhat = predictions[i][0: 4].sum() / 3
+        rmse_average += (yhat - average) ** 2
     print("Length ", len(error))
     rmse = math.sqrt(rmse / len(test_data))
+    rmse_average =  math.sqrt(rmse_average / len(test_data))
+    return error, rmse, rmse_average
 
-    return error, rmse
+def validation_cumulative(yhat, data):
+    rmse = 0
+    for i in range(len(yhat)):
 
+        average = data.iloc[i][0: 4].sum() / 3
+        rmse += (average - yhat[i]) ** 2
+
+    return math.sqrt(rmse / len(yhat))
 
 def take_the_bias(data):
     array = []
@@ -830,6 +871,7 @@ def take_the_bias(data):
         array.append(s / d)
 
     return array
+
 
 
 def validation_source_truth(predictions):
@@ -929,17 +971,14 @@ def correlation_table(data, graderNo):
 def first_optimization(split_value):  # split value means that we are getting frequency of common projects
     train, test = split_data(df2, split_value)
     train = MLModel_base(train)
-    err, rmse = validation(train, test)
+    err, rmse, rmse_a = validation(train, test, df2)
     print("validation score")
     print("RMSE value: " + str(rmse))
+    print("RMSE_AVG value: " + str(rmse_a))
     print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
     print("Error average: " + str(np.mean(err)))
     print()
-    # train3 = MLModel_base(df2.to_numpy())
-    # err3, rmse3 = validation_source_truth(train3)
-    # print("RMSE value: " + str(rmse3))
-    # print("Max & Min : " + str(max(err3)) + " & " + str(min(err3)))
-    # print("Error average:" + str(np.mean(err3)))
+
 
 
 def second_optimization(split_value):
@@ -1006,9 +1045,10 @@ def fifth_optimization(split_value):
 
 def sixth_optimization(split_value):
     train, test = split_data(df2, split_value)
-    train = MLModel_collaborative(meanCorrelation(train), train)
-    err, rmse = validation(train, test)
+    train = MLModel_collaborative(meanCorrelation(train), train, 20, 0, 4)
+    err, rmse, rmse_a = validation(train, test, df2)
     print("RMSE value: " + str(rmse))
+    print("RMSE_AVG value: " + str(rmse_a))
     print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
     print("Error average: " + str(np.mean(err)))
     print()
@@ -1023,11 +1063,19 @@ def sixth_optimization(split_value):
     # print("Error average:" + str(np.mean(err2)))
     # print("Source of truth validation score")
 
+def seventh_optimization(split_value):
+    train, test = split_data(df2, split_value)
+    train = MLModel_cumulative(meanCorrelation(train), train, 20, 0)
+    rmse = validation_cumulative(train, df2)
+    print("RMSE value: " + str(rmse))
+    print()
+
 first_optimization(10)
 # second_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
 # fifth_optimization(10)
-# sixth_optimization(10)
+sixth_optimization(10)
+seventh_optimization(10)
 
 correlation_table(df2, 4)
