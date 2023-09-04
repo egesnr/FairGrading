@@ -28,7 +28,6 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
 
 '''
 df = pd.read_csv("PIEWritingData.csv")
-df = pd.read_csv("More Noised Data for Lecturers\FinalScores4.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -909,10 +908,10 @@ def standart_deviation_table(data):
     return pd.DataFrame(standart_deviation_table)
 
 
-def correlation_table(data):
+def correlation_table(data, graderNo):
     corr_table = []
-    for i in range(4):
-        for j in range(4):
+    for i in range(graderNo):
+        for j in range(graderNo):
             combinations = data.iloc[:, [i, j]]
             combinations_dropped = combinations.dropna()
             first_column = combinations_dropped.iloc[:, 0]
@@ -922,7 +921,7 @@ def correlation_table(data):
             corr_table.append(statistics.correlation(first_column, second_column))
 
     corr_table = np.array(corr_table)
-    corr_table = corr_table.reshape(4, 4)
+    corr_table = corr_table.reshape(graderNo, graderNo)
     return pd.DataFrame(corr_table)
 
 
@@ -1029,5 +1028,6 @@ first_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
 # fifth_optimization(10)
-sixth_optimization(10)
+# sixth_optimization(10)
 
+correlation_table(df2, 4)
