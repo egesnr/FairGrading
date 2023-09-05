@@ -27,7 +27,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("PIEWritingData.csv")
+df = pd.read_csv("PIEGrammaticalData.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -93,7 +93,7 @@ def dev():
 
 # This model finds every graded index and non-graded index, gets the average of all graded values for same project
 # Then gives prediction for every other non-graded lecturer for same project
-def MLModel_base(data):
+def MLModel_base(data, clampMax, clampMin):
     train = copy.deepcopy(data)
 
     for i in range(len(train)):
@@ -108,10 +108,10 @@ def MLModel_base(data):
                 unknown_temp.append(a)
 
         temp_sum = temp_sum / len(temp)
-        if temp_sum > 20:
-            temp_sum = 20
-        elif temp_sum < 0:
-            temp_sum = 0
+        if temp_sum > clampMax:
+            temp_sum = clampMax
+        elif temp_sum < clampMin:
+            temp_sum = clampMin
         for b in range(len(unknown_temp)):
             train[i][unknown_temp[b]] = temp_sum
     return train
@@ -823,20 +823,22 @@ def validation(predictions, test_data, data):
     error = []
     rmse = 0.0
     rmse_average = 0
-
+    index = data.notna()
+    for x in range(len(predictions)):
+        for y in range(len(predictions[x])):
+            if not index.iloc[x][y]:
+                predictions[x][y] = np.nan
     for i in range(len(test_data)):
-
-
+        average = data.iloc[i][0: 4].mean()
+        yhat = np.nanmean(predictions[i][0: 4])
+        rmse_average += (yhat - average) ** 2
         for key, value in test_data[i].items():
             if np.isnan(value) == False:
                 rmse += ((predictions[i][key] - value) ** 2)
 
                 error.append(abs(predictions[i][key] - value))
+                predictions[i][key] = np.nan
 
-
-        average = data.iloc[i][0: 4].sum() / 3
-        yhat = predictions[i][0: 4].sum() / 3
-        rmse_average += (yhat - average) ** 2
     print("Length ", len(error))
     rmse = math.sqrt(rmse / len(test_data))
     rmse_average =  math.sqrt(rmse_average / len(test_data))
@@ -970,7 +972,7 @@ def correlation_table(data, graderNo):
 # control function
 def first_optimization(split_value):  # split value means that we are getting frequency of common projects
     train, test = split_data(df2, split_value)
-    train = MLModel_base(train)
+    train = MLModel_base(train, 5, 0)
     err, rmse, rmse_a = validation(train, test, df2)
     print("validation score")
     print("RMSE value: " + str(rmse))
@@ -1045,7 +1047,7 @@ def fifth_optimization(split_value):
 
 def sixth_optimization(split_value):
     train, test = split_data(df2, split_value)
-    train = MLModel_collaborative(meanCorrelation(train), train, 20, 0, 4)
+    train = MLModel_collaborative(meanCorrelation(train), train, 5, 0, 4)
     err, rmse, rmse_a = validation(train, test, df2)
     print("RMSE value: " + str(rmse))
     print("RMSE_AVG value: " + str(rmse_a))
@@ -1065,7 +1067,7 @@ def sixth_optimization(split_value):
 
 def seventh_optimization(split_value):
     train, test = split_data(df2, split_value)
-    train = MLModel_cumulative(meanCorrelation(train), train, 20, 0)
+    train = MLModel_cumulative(meanCorrelation(train), train, 5, 0)
     rmse = validation_cumulative(train, df2)
     print("RMSE value: " + str(rmse))
     print()
