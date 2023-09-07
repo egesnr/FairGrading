@@ -27,7 +27,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("PIEGrammaticalData.csv")
+df = pd.read_csv("PIEWritingData.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -130,11 +130,12 @@ def meanCorrelation(train_data):
             var = teacher_x - teacher_y
             if np.isnan(var):
                 var = 0
+            a.append(var)
             # TODO: burayı bir konuşalım
-            if var > 0:
-                a.append(math.ceil(var))
-            else:
-                a.append(math.floor(var))
+            # if var > 0:
+            #     a.append(math.ceil(var))
+            # else:
+            #     a.append(math.floor(var))
 
     b = np.array(a)
     c = b.reshape(4, 4)
@@ -418,9 +419,9 @@ def MLModel_collaborative(inter_data, sample_data, clampMax, clampMin, graderNo)
     sample_data1 = copy.deepcopy(sample_data)
     # Burda niye df2 kullanıyoruz çünkü veri ayırma yapınca yeteri kadar ortak veri bulamıyoruz ve hata veriyor
     corr_table = correlation_table(pd.DataFrame(sample_data1), graderNo)
-    common_table = common_grade_table(pd.DataFrame(df2))
-    general_mean_table = take_the_bias(df2.to_numpy())
-    sdt = standart_deviation_table(pd.DataFrame(sample_data))
+
+
+
     for i in range(len(sample_data1)):
         temp = []
         unknown_temp = []
@@ -444,22 +445,11 @@ def MLModel_collaborative(inter_data, sample_data, clampMax, clampMin, graderNo)
                     adjusted = sample_data[i][temp[j]] + common_diff
 
                     # Pearson's Correlation
-                    corr = corr_table[temp[j]][unknown_temp[b]]
+                    corr = abs(corr_table[temp[j]][unknown_temp[b]])
 
                     weighted = adjusted * corr
 
-                    corrSum += abs(corr)
-                    tempSum += weighted
-
-                    common_diff = general_mean_table[unknown_temp[b]] - general_mean_table[temp[j]]
-                    adjusted = sample_data[i][temp[j]] + common_diff
-
-                    # Pearson's Correlation
-                    corr = corr_table[temp[j]][unknown_temp[b]]
-
-                    weighted = adjusted * abs(corr)
-
-                    corrSum += abs(corr)
+                    corrSum += corr
                     tempSum += weighted
 
                 else:
@@ -475,14 +465,13 @@ def MLModel_collaborative(inter_data, sample_data, clampMax, clampMin, graderNo)
     return sample_data1
 
 
-def MLModel_cumulative(individual_data, sample_data, clampMax, clampMin):
+def MLModel_cumulative(sample_data, clampMax, clampMin):
     sample_data1 = copy.deepcopy(sample_data)
     # Burda niye df2 kullanıyoruz çünkü veri ayırma yapınca yeteri kadar ortak veri bulamıyoruz ve hata veriyor
-    corr_table = meanCorrelation(df2.to_numpy())
-    common_table = common_grade_table(pd.DataFrame(df2))
-    general_mean_table = take_the_bias(df2.to_numpy())
-    sdt = std_of_individuals(pd.DataFrame(df2))
-    sdt2 = standart_deviation_table(pd.DataFrame(df2))
+
+    general_mean_table = take_the_bias(sample_data1)
+    sdt = std_of_individuals(pd.DataFrame(sample_data1))
+
     y_hat = []
 
     for i in range(len(sample_data1)):
@@ -499,27 +488,10 @@ def MLModel_cumulative(individual_data, sample_data, clampMax, clampMin):
         count = 0
         for j in range(len(temp)):
             common_diff = general_mean_table[temp[j]]
-            adjusted = sample_data1[i][temp[j]] - common_diff
-            row_except_element = temp[:j] + temp[j + 1:]
-            raw_score = sample_data1[i][temp[j]] - (sum(sample_data1[i][row_except_element]) / 2)
 
-            score_z = (raw_score - general_mean_table[temp[j]])/sdt[temp[j]]
-            #tempSum += adjusted*(1/sdt[temp[j]])
             tempSum += (sample_data1[i][temp[j]] - common_diff)*(1/(sdt[temp[j]]))
             count += 1/(sdt[temp[j]])
-            '''
-            score_x = 1/(sdt[temp[j]]+1)
-            score_p = 1
-            coefficient = 1/(score_z+0.1)
-            coefficient2 = common_diff*score_z        
-                    
-            weighted =  sample_data1[i][temp[j]] - coefficient2
-            scores.append(coefficient)
-                   
-            tempSum += weighted
-            '''
-                 
-                
+
         average = tempSum / count
 
         if average > clampMax:
@@ -972,7 +944,7 @@ def correlation_table(data, graderNo):
 # control function
 def first_optimization(split_value):  # split value means that we are getting frequency of common projects
     train, test = split_data(df2, split_value)
-    train = MLModel_base(train, 5, 0)
+    train = MLModel_base(train, 20, 0)
     err, rmse, rmse_a = validation(train, test, df2)
     print("validation score")
     print("RMSE value: " + str(rmse))
@@ -1047,7 +1019,7 @@ def fifth_optimization(split_value):
 
 def sixth_optimization(split_value):
     train, test = split_data(df2, split_value)
-    train = MLModel_collaborative(meanCorrelation(train), train, 5, 0, 4)
+    train = MLModel_collaborative(meanCorrelation(train), train, 20, 0, 4)
     err, rmse, rmse_a = validation(train, test, df2)
     print("RMSE value: " + str(rmse))
     print("RMSE_AVG value: " + str(rmse_a))
@@ -1067,7 +1039,7 @@ def sixth_optimization(split_value):
 
 def seventh_optimization(split_value):
     train, test = split_data(df2, split_value)
-    train = MLModel_cumulative(meanCorrelation(train), train, 5, 0)
+    train = MLModel_cumulative(train, 20, 0)
     rmse = validation_cumulative(train, df2)
     print("RMSE value: " + str(rmse))
     print()
