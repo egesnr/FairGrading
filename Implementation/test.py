@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import math
+import scipy as sc
 
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -27,7 +28,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("PIEWritingData.csv")
+df = pd.read_csv("PIEGrammaticalData.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -383,7 +384,7 @@ def MLModel_VariationE(inter_data, sample_data):
                     tempVar = tempVar * (1 / std_of_individuals[temp[j]][unknown_temp[b]])
                     tempSum += tempVar
                     sdt_array.append(1 / std_of_individuals)
-                    sdt_array.append(1/sdt_of_pairs[temp[j]][unknown_temp[b]])
+                    sdt_array.append(1 / sdt_of_pairs[temp[j]][unknown_temp[b]])
                 else:
                     continue
             divided = sum(sdt_array)
@@ -420,8 +421,6 @@ def MLModel_collaborative(inter_data, sample_data, clampMax, clampMin, graderNo)
     # Burda niye df2 kullanıyoruz çünkü veri ayırma yapınca yeteri kadar ortak veri bulamıyoruz ve hata veriyor
     corr_table = correlation_table(pd.DataFrame(sample_data1), graderNo)
 
-
-
     for i in range(len(sample_data1)):
         temp = []
         unknown_temp = []
@@ -455,7 +454,7 @@ def MLModel_collaborative(inter_data, sample_data, clampMax, clampMin, graderNo)
                 else:
                     continue
             average = tempSum / corrSum
-            #TODO: it will be updated
+            # TODO: it will be updated
             if average > clampMax:
                 average = clampMax
             elif average < clampMin:
@@ -489,8 +488,8 @@ def MLModel_cumulative(sample_data, clampMax, clampMin):
         for j in range(len(temp)):
             common_diff = general_mean_table[temp[j]]
 
-            tempSum += (sample_data1[i][temp[j]] - common_diff)*(1/(sdt[temp[j]]))
-            count += 1/(sdt[temp[j]])
+            tempSum += (sample_data1[i][temp[j]] - common_diff) * (1 / (sdt[temp[j]]))
+            count += 1 / (sdt[temp[j]])
 
         average = tempSum / count
 
@@ -564,7 +563,7 @@ def find_frequency(data):
 
 # Find how many common grade for each pair of teacher
 # Range check
-def common_grade_table(data,):
+def common_grade_table(data, ):
     freq2 = []
     for i in range(4):
         for j in range(4):
@@ -779,7 +778,6 @@ def split_data(data, frequency_limit):
                     commons[teacher_1][teacher_3] -= 1
                     commons[teacher_2][teacher_3] -= 1
 
-
         test_dict[i] = {var: train_data[i, var]}
 
         test_dict.append({})
@@ -795,35 +793,63 @@ def validation(predictions, test_data, data):
     error = []
     rmse = 0.0
     rmse_average = 0
+    y_norm = 0
+    y_norm_avg = 0
+    yhat_avg_array = []
+    y_avg_array = []
+    yhat_array = []
+    y_array = []
+
     index = data.notna()
     for x in range(len(predictions)):
         for y in range(len(predictions[x])):
             if not index.iloc[x][y]:
                 predictions[x][y] = np.nan
+
     for i in range(len(test_data)):
         average = data.iloc[i][0: 4].mean()
-        yhat = np.nanmean(predictions[i][0: 4])
-        rmse_average += (yhat - average) ** 2
+        y_avg_array.append(average)
+        yhat_from_average = np.nanmean(predictions[i][0: 4])
+        yhat_avg_array.append(yhat_from_average)
+        rmse_average += (yhat_from_average - average) ** 2
+        y_norm_avg += average
+
         for key, value in test_data[i].items():
             if np.isnan(value) == False:
                 rmse += ((predictions[i][key] - value) ** 2)
+                y_norm += value
 
+                yhat_array.append(predictions[i][key])
+                y_array.append(value)
                 error.append(abs(predictions[i][key] - value))
                 predictions[i][key] = np.nan
 
-    print("Length ", len(error))
     rmse = math.sqrt(rmse / len(test_data))
-    rmse_average =  math.sqrt(rmse_average / len(test_data))
-    return error, rmse, rmse_average
+    rmse_average = math.sqrt(rmse_average / len(test_data))
+    y_norm = y_norm / len(test_data)
+    y_norm_avg = y_norm_avg / len(test_data)
+
+    # this is for t-test
+    results = sc.stats.ttest_rel(yhat_array, y_array)
+    results_avg = sc.stats.ttest_rel(yhat_avg_array, y_avg_array)
+
+    return error, rmse, rmse_average, rmse / y_norm, rmse_average / y_norm_avg, results, results_avg
+
 
 def validation_cumulative(yhat, data):
     rmse = 0
+    y_norm = 0
+    y = []
     for i in range(len(yhat)):
-
-        average = data.iloc[i][0: 4].sum() / 3
+        average = data.iloc[i][0: 4].mean()
+        y.append(average)
+        y_norm += average
         rmse += (average - yhat[i]) ** 2
 
-    return math.sqrt(rmse / len(yhat))
+    results = sc.stats.ttest_rel(yhat, y)
+
+    return math.sqrt(rmse / len(yhat)), results, y_norm / len(yhat)
+
 
 def take_the_bias(data):
     array = []
@@ -847,7 +873,41 @@ def take_the_bias(data):
     return array
 
 
+def validation_ground_truth(predictions, filePath):
+    gt = pd.read_csv(filePath)
+    gt = gt.drop('ID', inplace=False, axis=1)
+    nan_indices = []
+    for i in range(df2.shape[0]):
+        for j in range(df2.shape[1]):
+            if pd.isna(df2.iloc[i, j]):
+                nan_indices.append((i, j))
 
+    rmse_avg = 0
+    y_norm = 0
+
+    rmse = 0
+    y_norm_second = 0
+
+    # Calculate yhat average error
+    for i in range(len(predictions)):
+        rmse_avg += (np.mean(predictions[i]) - np.mean(gt.iloc[i])) ** 2
+        y_norm += np.mean(gt.iloc[i])
+
+    # Calculate yhat error
+    for i in range(len(nan_indices)):
+        rmse += (predictions[nan_indices[i][0]][nan_indices[i][1]] - gt.iloc[nan_indices[i][0], nan_indices[i][1]]) ** 2
+        y_norm_second += gt.iloc[nan_indices[i][0], nan_indices[i][1]]
+
+    rmse_avg = math.sqrt(rmse_avg / len(predictions))
+    y_norm = y_norm / len(predictions)
+
+    rmse = math.sqrt(rmse / len(nan_indices))
+    y_norm_second = y_norm_second / len(nan_indices)
+
+    return rmse_avg, rmse, y_norm, y_norm_second
+
+
+# This function is only using for synthetic data please don't implement otherwise
 def validation_source_truth(predictions):
     truth = pd.read_csv("Implementation/Truth.csv")
     truth2 = truth.drop('Project ID', inplace=False, axis=1)
@@ -942,17 +1002,33 @@ def correlation_table(data, graderNo):
 
 
 # control function
-def first_optimization(split_value):  # split value means that we are getting frequency of common projects
+# split value means that we are getting frequency of common projects
+def first_optimization(split_value, clampMax, clampMin, filePath):
+    print("BASELINE")
     train, test = split_data(df2, split_value)
-    train = MLModel_base(train, 20, 0)
-    err, rmse, rmse_a = validation(train, test, df2)
+    train = MLModel_base(train, clampMax, clampMin)
+    err, rmse, rmse_a, rmse_norm, rmse_a_norm, results, results_avg = validation(train, test, df2)
     print("validation score")
     print("RMSE value: " + str(rmse))
+    print("RMSE value normalized: " + str(rmse_norm))
     print("RMSE_AVG value: " + str(rmse_a))
+    print("RMSE_AVG value normalized: " + str(rmse_a_norm))
     print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
     print("Error average: " + str(np.mean(err)))
+    print(results)
+    print("Average predictions t-test results" + str(results_avg))
     print()
 
+    print("Ground Truth Values --------------------")
+
+    train = MLModel_base(df2.to_numpy(), clampMax, clampMin)
+    rmse_a, rmse, y_norm, y_norm_second = validation_ground_truth(train, filePath)
+
+    print("RMSE value: " + str(rmse))
+    print("RMSE value normalized: " + str(rmse / y_norm_second))
+    print("RMSE_AVG value: " + str(rmse_a))
+    print("RMSE_AVG value normalized: " + str(rmse_a / y_norm))
+    print()
 
 
 def second_optimization(split_value):
@@ -1017,39 +1093,60 @@ def fifth_optimization(split_value):
     print("Error average:" + str(np.mean(err2)))
 
 
-def sixth_optimization(split_value):
+def sixth_optimization(split_value, clampMax, clampMin, filePath):
+    print("CORRELATION")
     train, test = split_data(df2, split_value)
-    train = MLModel_collaborative(meanCorrelation(train), train, 20, 0, 4)
-    err, rmse, rmse_a = validation(train, test, df2)
+    train = MLModel_collaborative(meanCorrelation(train), train, clampMax, clampMin, 4)
+    err, rmse, rmse_a, rmse_norm, rmse_a_norm, results, results_avg = validation(train, test, df2)
+    print("validation score")
     print("RMSE value: " + str(rmse))
+    print("RMSE value normalized: " + str(rmse_norm))
     print("RMSE_AVG value: " + str(rmse_a))
+    print("RMSE_AVG value normalized: " + str(rmse_a_norm))
     print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
     print("Error average: " + str(np.mean(err)))
+    print(results)
+    print("Average predictions t-test results" + str(results_avg))
     print()
 
-    # print("randomized validation score ")
-    # train2, test2 = split_data_randomized(df2)
-    # train2 = MLModel_collaborative(meanCorrelation(train2), train2)
-    # err2, rmse2 = validation(train2, test2)
-    # print()
-    # print("RMSE value: " + str(rmse2))
-    # print("Max & Min : " + str(max(err2)) + " & " + str(min(err2)))
-    # print("Error average:" + str(np.mean(err2)))
-    # print("Source of truth validation score")
+    print("Ground Truth Values --------------------")
 
-def seventh_optimization(split_value):
-    train, test = split_data(df2, split_value)
-    train = MLModel_cumulative(train, 20, 0)
-    rmse = validation_cumulative(train, df2)
+    train = MLModel_collaborative(meanCorrelation(df2.to_numpy()), df2.to_numpy(), clampMax, clampMin, 4)
+    rmse_a, rmse, y_norm, y_norm_second = validation_ground_truth(train, filePath)
+
     print("RMSE value: " + str(rmse))
+    print("RMSE value normalized: " + str(rmse / y_norm_second))
+    print("RMSE_AVG value: " + str(rmse_a))
+    print("RMSE_AVG value normalized: " + str(rmse_a / y_norm))
     print()
 
-first_optimization(10)
+
+def seventh_optimization(split_value, clampMax, clampMin, filePath):
+    print("CUMULATIVE")
+    train, test = split_data(df2, split_value)
+    train = MLModel_cumulative(train, clampMax, clampMin)
+    rmse, results, y_norm = validation_cumulative(train, df2)
+    print("RMSE_avg value: " + str(rmse))
+    print("RMSE_avg value normalized: " + str(rmse / y_norm))
+    print(results)
+    print()
+    print("Ground Truth Values --------------------")
+    gt = pd.read_csv(filePath)
+    gt = gt.drop('ID', inplace=False, axis=1)
+    train = MLModel_cumulative(df2.to_numpy(), clampMax, clampMin)
+    rmse, results, y_norm = validation_cumulative(train, gt)
+
+    print("RMSE_AVG value: " + str(rmse))
+    print("RMSE_AVG value normalized: " + str(rmse / y_norm))
+    print()
+    print(results)
+
+
+first_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
 # second_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
 # fifth_optimization(10)
-sixth_optimization(10)
-seventh_optimization(10)
+sixth_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
+seventh_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
 
-correlation_table(df2, 4)
