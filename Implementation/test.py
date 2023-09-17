@@ -28,7 +28,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("PIEGrammaticalData.csv")
+df = pd.read_csv("../More Lecturers/Grading Assignment Lecturer 10.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -789,7 +789,7 @@ def split_data(data, frequency_limit):
 
 
 # calculates error array, root mean square error
-def validation(predictions, test_data, data):
+def validation(predictions, test_data, data, scale_coef=1):
     error = []
     rmse = 0.0
     rmse_average = 0
@@ -811,12 +811,12 @@ def validation(predictions, test_data, data):
         y_avg_array.append(average)
         yhat_from_average = np.nanmean(predictions[i][0: 4])
         yhat_avg_array.append(yhat_from_average)
-        rmse_average += (yhat_from_average - average) ** 2
+        rmse_average += ((yhat_from_average - average) * scale_coef) ** 2
         y_norm_avg += average
 
         for key, value in test_data[i].items():
             if np.isnan(value) == False:
-                rmse += ((predictions[i][key] - value) ** 2)
+                rmse += ((predictions[i][key] - value * scale_coef) ** 2)
                 y_norm += value
 
                 yhat_array.append(predictions[i][key])
@@ -836,19 +836,33 @@ def validation(predictions, test_data, data):
     return error, rmse, rmse_average, rmse / y_norm, rmse_average / y_norm_avg, results, results_avg
 
 
-def validation_cumulative(yhat, data):
+def validation_cumulative(yhat, data, scale_coef=1, is_synthethic_data=False, isNorm=False):
     rmse = 0
     y_norm = 0
     y = []
-    for i in range(len(yhat)):
-        average = data.iloc[i][0: 4].mean()
-        y.append(average)
-        y_norm += average
-        rmse += (average - yhat[i]) ** 2
+    results = 0
 
-    results = sc.stats.ttest_rel(yhat, y)
+    if is_synthethic_data:
+        truth = pd.read_csv("Truth.csv")
+        truth2 = truth.drop('Project ID', inplace=False, axis=1)
+        truth2 = truth2.T.to_numpy().flatten()
+        for i in range(len(yhat)):
+            rmse += ((truth2[i] - yhat[i]) * scale_coef) ** 2
+    else:
+        for i in range(len(yhat)):
+            average = data.iloc[i][0: 4].mean()
+            y.append(average)
+            y_norm += average
+            rmse += ((average - yhat[i]) * scale_coef) ** 2
+        y_norm = y_norm / len(yhat)
+        results = sc.stats.ttest_rel(yhat, y)
 
-    return math.sqrt(rmse / len(yhat)), results, y_norm / len(yhat)
+    rmse = math.sqrt(rmse / len(yhat))
+
+    if isNorm:
+        rmse = rmse / y_norm
+
+    return rmse, results
 
 
 def take_the_bias(data):
@@ -891,6 +905,7 @@ def validation_ground_truth(predictions, filePath):
     # Calculate yhat average error
     for i in range(len(predictions)):
         rmse_avg += (np.mean(predictions[i]) - np.mean(gt.iloc[i])) ** 2
+        y_norm += np.mean(gt.iloc[i])
         y_norm += np.mean(gt.iloc[i])
 
     # Calculate yhat error
@@ -1123,30 +1138,28 @@ def sixth_optimization(split_value, clampMax, clampMin, filePath):
 
 def seventh_optimization(split_value, clampMax, clampMin, filePath):
     print("CUMULATIVE")
-    train, test = split_data(df2, split_value)
-    train = MLModel_cumulative(train, clampMax, clampMin)
-    rmse, results, y_norm = validation_cumulative(train, df2)
-    print("RMSE_avg value: " + str(rmse))
-    print("RMSE_avg value normalized: " + str(rmse / y_norm))
-    print(results)
-    print()
+    # train, test = split_data(df2, split_value)
+    # train = MLModel_cumulative(train, clampMax, clampMin)
+    # rmse, results, y_norm = validation_cumulative(train, df2)
+    # print("RMSE_avg value: " + str(rmse))
+    # print("RMSE_avg value normalized: " + str(rmse / y_norm))
+    # print(results)
+    # print()
     print("Ground Truth Values --------------------")
     gt = pd.read_csv(filePath)
     gt = gt.drop('ID', inplace=False, axis=1)
     train = MLModel_cumulative(df2.to_numpy(), clampMax, clampMin)
-    rmse, results, y_norm = validation_cumulative(train, gt)
+    rmse, results = validation_cumulative(train, gt, is_synthethic_data=True)
 
     print("RMSE_AVG value: " + str(rmse))
-    print("RMSE_AVG value normalized: " + str(rmse / y_norm))
     print()
     print(results)
 
 
-first_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
+# first_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
 # second_optimization(10)
 # third_optimization(10)
 # fourth_optimization(10)
 # fifth_optimization(10)
-sixth_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
-seventh_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
-
+# sixth_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
+seventh_optimization(10, 100, 0, "../More Lecturers/Grading Assignment Lecturer 4.csv")
