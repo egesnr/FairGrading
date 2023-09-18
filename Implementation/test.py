@@ -7,7 +7,6 @@ import pandas as pd
 import math
 import scipy as sc
 
-
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression, RidgeCV, LassoCV, ElasticNetCV
@@ -29,7 +28,7 @@ with open("Implementation\Grading_Assignment.csv","r") as file:
         rows.append(row)
 
 '''
-df = pd.read_csv("Grading_Assignment.csv")
+df = pd.read_csv("PIEWritingData.csv")
 # Dropped ID Column for d2 dataframe
 df2 = df.drop('ID', inplace=False, axis=1)
 
@@ -822,7 +821,7 @@ def validation(predictions, test_data, data, grader_no, scale_coef=1, ):
 
         for key, value in test_data[i].items():
             if np.isnan(value) == False:
-                rmse += ((predictions[i][key] - value * scale_coef) ** 2)
+                rmse += (((predictions[i][key] - value) * scale_coef) ** 2)
                 y_norm += value
 
                 yhat_array.append(predictions[i][key])
@@ -893,7 +892,7 @@ def take_the_bias(data):
     return array
 
 
-def validation_ground_truth(predictions, filePath):
+def validation_ground_truth(predictions, filePath, scale_coef=1):
     gt = pd.read_csv(filePath)
     gt = gt.drop('ID', inplace=False, axis=1)
     nan_indices = []
@@ -910,13 +909,14 @@ def validation_ground_truth(predictions, filePath):
 
     # Calculate yhat average error
     for i in range(len(predictions)):
-        rmse_avg += (np.mean(predictions[i]) - np.mean(gt.iloc[i])) ** 2
+        rmse_avg += ((np.mean(predictions[i]) - np.mean(gt.iloc[i])) * scale_coef) ** 2
         y_norm += np.mean(gt.iloc[i])
         y_norm += np.mean(gt.iloc[i])
 
     # Calculate yhat error
     for i in range(len(nan_indices)):
-        rmse += (predictions[nan_indices[i][0]][nan_indices[i][1]] - gt.iloc[nan_indices[i][0], nan_indices[i][1]]) ** 2
+        rmse += ((predictions[nan_indices[i][0]][nan_indices[i][1]] - gt.iloc[
+            nan_indices[i][0], nan_indices[i][1]]) * scale_coef) ** 2
         y_norm_second += gt.iloc[nan_indices[i][0], nan_indices[i][1]]
 
     rmse_avg = math.sqrt(rmse_avg / len(predictions))
@@ -1026,16 +1026,19 @@ def correlation_table(data, graderNo):
 
 # control function
 # split value means that we are getting frequency of common projects
-def first_optimization(split_value, clampMax, clampMin, filePath, grader_no):
+def first_optimization(split_value, clampMax, clampMin, filePath, grader_no, coef=1):
     print("BASELINE")
     train, test = split_data(df2, split_value, grader_no)
+    train2 = copy.deepcopy(train)
+
     train = MLModel_base(train, clampMax, clampMin)
-    err, rmse, rmse_a, rmse_norm, rmse_a_norm, results, results_avg = validation(train, test, df2)
+    err, rmse, rmse_a, rmse_norm, rmse_a_norm, results, results_avg = validation(train, test, df2, grader_no,
+                                                                                 scale_coef=coef)
     print("validation score")
     print("RMSE value: " + str(rmse))
-    print("RMSE value normalized: " + str(rmse_norm))
+
     print("RMSE_AVG value: " + str(rmse_a))
-    print("RMSE_AVG value normalized: " + str(rmse_a_norm))
+
     print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
     print("Error average: " + str(np.mean(err)))
     print(results)
@@ -1044,13 +1047,13 @@ def first_optimization(split_value, clampMax, clampMin, filePath, grader_no):
 
     print("Ground Truth Values --------------------")
 
-    train = MLModel_base(df2.to_numpy(), clampMax, clampMin)
-    rmse_a, rmse, y_norm, y_norm_second = validation_ground_truth(train, filePath)
+    train = MLModel_base(train2, clampMax, clampMin)
+    rmse_a, rmse, y_norm, y_norm_second = validation_ground_truth(train, filePath, scale_coef=coef)
 
     print("RMSE value: " + str(rmse))
-    print("RMSE value normalized: " + str(rmse / y_norm_second))
+
     print("RMSE_AVG value: " + str(rmse_a))
-    print("RMSE_AVG value normalized: " + str(rmse_a / y_norm))
+
     print()
 
 
@@ -1116,16 +1119,18 @@ def fifth_optimization(split_value):
     print("Error average:" + str(np.mean(err2)))
 
 
-def sixth_optimization(split_value, clampMax, clampMin, filePath, grader_no, is_synthetic_data):
+def sixth_optimization(split_value, clampMax, clampMin, filePath, grader_no, is_synthetic_data, coef=1):
     print("CORRELATION")
     train, test = split_data(df2, split_value, grader_no)
+    train2 = copy.deepcopy(train)
     train = MLModel_collaborative(meanCorrelation(train, grader_no), train, clampMax, clampMin, grader_no)
-    err, rmse, rmse_a, rmse_norm, rmse_a_norm, results, results_avg = validation(train, test, df2, grader_no)
+    err, rmse, rmse_a, rmse_norm, rmse_a_norm, results, results_avg = validation(train, test, df2, grader_no,
+                                                                                 scale_coef=coef)
     print("validation score")
     print("RMSE value: " + str(rmse))
-    print("RMSE value normalized: " + str(rmse_norm))
+
     print("RMSE_AVG value: " + str(rmse_a))
-    print("RMSE_AVG value normalized: " + str(rmse_a_norm))
+
     print("Max & Min : " + str(max(err)) + " & " + str(min(err)))
     print("Error average: " + str(np.mean(err)))
     print(results)
@@ -1134,41 +1139,45 @@ def sixth_optimization(split_value, clampMax, clampMin, filePath, grader_no, is_
 
     print("Ground Truth Values --------------------")
 
-    train = MLModel_collaborative(meanCorrelation(df2.to_numpy(), grader_no), df2.to_numpy(), clampMax, clampMin, grader_no)
-    rmse_a, rmse, y_norm, y_norm_second = validation_ground_truth(train, filePath, is_synthetic_data)
+    train = MLModel_collaborative(meanCorrelation(train2, grader_no), train2, clampMax, clampMin, grader_no)
+    rmse_a, rmse, y_norm, y_norm_second = validation_ground_truth(train, filePath, scale_coef=coef)
 
     print("RMSE value: " + str(rmse))
-    print("RMSE value normalized: " + str(rmse / y_norm_second))
+
     print("RMSE_AVG value: " + str(rmse_a))
-    print("RMSE_AVG value normalized: " + str(rmse_a / y_norm))
+
     print()
 
 
-def seventh_optimization(split_value, clampMax, clampMin, filePath, is_Synthethic_data):
+def seventh_optimization(split_value, clampMax, clampMin, filePath, grader_no, is_Synthethic_data, coef=1):
     print("CUMULATIVE")
-    train, test = split_data(df2, split_value)
+    train, test = split_data(df2, split_value, grader_no=grader_no)
+    train2 = copy.deepcopy(train)
+
     train = MLModel_cumulative(train, clampMax, clampMin)
-    rmse, results = validation_cumulative(train, df2)
+
+    rmse, results = validation_cumulative(train, df2, grader_no, scale_coef=coef)
     print("RMSE_avg value: " + str(rmse))
     print(results)
     print()
 
     print("Ground Truth Values --------------------")
+    gt = ""
     if not is_Synthethic_data:
         gt = pd.read_csv(filePath)
         gt = gt.drop('ID', inplace=False, axis=1)
-    train = MLModel_cumulative(df2.to_numpy(), clampMax, clampMin)
-    rmse, results = validation_cumulative(train, gt, is_synthethic_data=True)
+    train = MLModel_cumulative(train2, clampMax, clampMin)
+    rmse, results = validation_cumulative(train, gt, is_synthethic_data=is_Synthethic_data, grader_no=grader_no,
+                                          scale_coef=coef)
 
     print("RMSE_AVG value: " + str(rmse))
     print()
     print(results)
 
 
-# first_optimization(10, 5, 0, "PIEWritingGroundTruth/GrammaticalGTData.csv")
-# second_optimization(10)
-# third_optimization(10)
-# fourth_optimization(10)
-# fifth_optimization(10)
-sixth_optimization(10, 100, 0, "", grader_no=25, is_synthetic_data=True)
-seventh_optimization(10, 100, 0, "",  is_Synthethic_data=True)
+first_optimization(10, 20, 0, "PIEWritingGroundTruth/TotalGradesGTData.csv", grader_no=4, coef=5)
+
+sixth_optimization(10, 20, 0, "PIEWritingGroundTruth/TotalGradesGTData.csv", grader_no=4, is_synthetic_data=False,
+                   coef=5)
+seventh_optimization(10, 20, 0, "PIEWritingGroundTruth/TotalGradesGTData.csv", is_Synthethic_data=False, grader_no=4,
+                     coef=5)
